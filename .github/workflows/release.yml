@@ -27,7 +27,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    # Instalación de dependencias compatible con Windows (PowerShell) y Linux (Bash)
+    # Instalación de dependencias (Windows)
     - name: Install dependencies (Windows)
       if: startsWith(matrix.os, 'windows')
       run: |
@@ -35,6 +35,7 @@ jobs:
         if (Test-Path "requirements.txt") { pip install -r requirements.txt }
         pip install pyinstaller
 
+    # Instalación de dependencias (Linux)
     - name: Install dependencies (Linux)
       if: startsWith(matrix.os, 'ubuntu')
       run: |
@@ -52,7 +53,6 @@ jobs:
       run: |
         pyinstaller --noconfirm --onefile unir_pdfs.py
 
-    # Subimos el binario generado como artefacto temporal
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -69,25 +69,30 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Descargamos los artefactos de ambos sistemas operativos
     - name: Download Windows Artifact
       uses: actions/download-artifact@v4
       with:
         name: executable-windows-latest
-        path: dist
+        path: dist-windows
 
     - name: Download Linux Artifact
       uses: actions/download-artifact@v4
       with:
         name: executable-ubuntu-latest
-        path: dist
+        path: dist-linux
 
-    - name: List files for debugging
-      run: ls -R dist
+    # NUEVO: Renombramos los archivos para diferenciarlos claramente en el release
+    - name: Rename binaries for release
+      run: |
+        mkdir -p release-assets
+        # Copia y renombra el de Windows
+        mv dist-windows/unir_pdfs.exe release-assets/unir_pdfs-windows-amd64.exe
+        # Copia y renombra el de Linux
+        mv dist-linux/unir_pdfs release-assets/unir_pdfs-linux-amd64
+        ls -R release-assets
 
     - name: Release and Upload Assets
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          dist/*.exe
-          dist/unir_pdfs
+          release-assets/*
