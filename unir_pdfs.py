@@ -1,6 +1,6 @@
 import os
-from tkinter import Tk, Listbox, Button, Label, Scrollbar, END, messagebox, filedialog
-from pypdf import PdfWriter
+from tkinter import Tk, Toplevel, Listbox, Button, Label, Scrollbar, StringVar, Radiobutton, END, messagebox, filedialog
+from pypdf import PdfWriter, PdfReader
 
 class PDFMergerApp:
     def __init__(self, root):
@@ -87,11 +87,44 @@ class PDFMergerApp:
         self.pdf_listbox.activate(target_index)
         self.pdf_listbox.see(target_index)
 
+    def pedir_nivel_compresion(self):
+        """Muestra una ventana emergente modal para elegir el nivel de compresión."""
+        ventana = Toplevel(self.root)
+        ventana.title("Nivel de Compresión")
+        ventana.geometry("340x230")
+        ventana.resizable(False, False)
+        ventana.grab_set()
+
+        seleccion = StringVar(value="medio")
+
+        Label(ventana, text="Selecciona el nivel de compresión:", font=("Arial", 10, "bold")).pack(pady=10)
+
+        Radiobutton(ventana, text="Sin compresión (Máxima calidad)", variable=seleccion, value="ninguna").pack(anchor="w", padx=30, pady=2)
+        Radiobutton(ventana, text="Compresión baja (Calidad alta)", variable=seleccion, value="baja").pack(anchor="w", padx=30, pady=2)
+        Radiobutton(ventana, text="Compresión media (Recomendado)", variable=seleccion, value="medio").pack(anchor="w", padx=30, pady=2)
+        Radiobutton(ventana, text="Compresión alta (Menor calidad / Más ligero)", variable=seleccion, value="alta").pack(anchor="w", padx=30, pady=2)
+
+        resultado = {"nivel": None}
+
+        def confirmar():
+            resultado["nivel"] = seleccion.get()
+            ventana.destroy()
+
+        Button(ventana, text="Aceptar", command=confirmar, bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), width=12).pack(pady=12)
+        
+        ventana.wait_window()
+        return resultado["nivel"]
+
     def merge_pdfs(self):
         pdfs = self.pdf_files
-        
+
         if not pdfs:
             messagebox.showwarning("Advertencia", "No hay archivos PDF seleccionados para unir.")
+            return
+
+        # Pedir nivel de compresión mediante ventana emergente
+        nivel = self.pedir_nivel_compresion()
+        if not nivel:
             return
 
         output_file = filedialog.asksaveasfilename(
@@ -104,19 +137,35 @@ class PDFMergerApp:
             return
 
         try:
-            # Usamos PdfWriter en lugar de PdfMerger
             merger = PdfWriter()
 
+            # 1. Primero unimos todos los PDFs normalmente al writer
             for pdf in pdfs:
-                merger.append(pdf)
+                reader = PdfReader(pdf)
+                for page in reader.pages:
+                    merger.add_page(page)
 
-            merger.write(output_file)
+            # 2. Una vez que las páginas ya forman parte del writer, aplicamos la compresión
+            if nivel != "ninguna":
+                for page in merger.pages:
+                    page.compress_content_streams() # Comprime flujos de texto/vectores
+                    
+                    if nivel in ["medio", "alta"]:
+                        for img in page.images:
+                            try:
+                                img.replace(img.image, quality=(50 if nivel == "medio" else 25))
+                            except Exception:
+                                pass
+
+            # 3. Guardamos el archivo final resultante
+            with open(output_file, "wb") as f:
+                merger.write(f)
             merger.close()
 
-            messagebox.showinfo("Éxito", f"¡PDFs unidos correctamente!\nGuardado en:\n{output_file}")
+            messagebox.showinfo("Éxito", f"¡PDFs unidos y comprimidos correctamente!\nGuardado en:\n{output_file}")
             self.clear_list()
         except Exception as e:
-            messagebox.showerror("Error", f"Ocurrió un error al unir los PDFs:\n{str(e)}")
+            messagebox.showerror("Error", f"Ocurrió un error al procesar los PDFs:\n{str(e)}")
 
 if __name__ == "__main__":
     root = Tk()
