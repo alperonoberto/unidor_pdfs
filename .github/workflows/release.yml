@@ -43,17 +43,17 @@ jobs:
         if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
         pip install pyinstaller
 
-    # Build con PyInstaller para Windows (Usando assets/icono.ico y assets/icono.png)
+    # Build con PyInstaller para Windows
     - name: Build with PyInstaller (Windows)
       if: startsWith(matrix.os, 'windows')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" --collect-all pymupdf unir_pdfs.py
 
-    # Build con PyInstaller para Linux (Usando assets/icono.png)
+    # Build con PyInstaller para Linux
     - name: Build with PyInstaller (Linux)
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --add-data "assets:assets" unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --add-data "assets:assets" --collect-all pymupdf unir_pdfs.py
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
