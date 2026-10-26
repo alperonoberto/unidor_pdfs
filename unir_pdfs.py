@@ -1,6 +1,6 @@
 import os
 from tkinter import Tk, Listbox, Button, Label, Scrollbar, END, messagebox, filedialog
-from pypdf import PdfWriter  # Actualizado a PdfWriter
+from pypdf import PdfWriter
 
 class PDFMergerApp:
     def __init__(self, root):
