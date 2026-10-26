@@ -12,5 +12,3 @@ Una herramienta práctica, rápida y eficiente diseñada para simplificar la ges
 Este proyecto está construido con tecnologías modernas para garantizar un rendimiento óptimo y una gran compatibilidad en entornos de escritorio.
 ## 🤝 Contribuciones
 ¡Las contribuciones son siempre bienvenidas! Si tienes ideas para mejorar la herramienta, encuentras algún error o quieres proponer nuevas funcionalidades, siéntete libre de abrir un Issue o enviar un Pull Request.
-## 📄 Licencia
-Este proyecto se distribuye bajo la licencia especificada en el repositorio. ¡Siéntete libre de usarlo y compartirlo!
