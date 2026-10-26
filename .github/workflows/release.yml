@@ -47,7 +47,7 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: startsWith(matrix.os, 'windows')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --icon=assets/icono.ico --add-data "assets;assets" unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" unir_pdfs.py
 
     # Build con PyInstaller para Linux (Usando assets/icono.png)
     - name: Build with PyInstaller (Linux)
