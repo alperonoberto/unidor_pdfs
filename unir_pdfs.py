@@ -1,8 +1,17 @@
 import os
+import sys
 import threading
-from tkinter import Tk, Toplevel, Listbox, Button, Label, Scrollbar, StringVar, DoubleVar, Radiobutton, END, messagebox, filedialog
+from tkinter import Tk, Toplevel, Listbox, Button, Label, Scrollbar, StringVar, DoubleVar, Radiobutton, END, messagebox, filedialog, PhotoImage
 from tkinter.ttk import Progressbar
-from pypdf import PdfWriter, PdfReader
+import pymupdf
+
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, compatible con desarrollo y con PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 class PDFMergerApp:
     def __init__(self, root):
@@ -10,6 +19,20 @@ class PDFMergerApp:
         self.root.title("Unidor y Compresor de PDFs")
         self.root.geometry("500x450")
         self.root.resizable(False, False)
+        
+        # Carga robusta y segura del icono para cualquier sistema operativo compatible con PyInstaller
+        try:
+            icon_path = resource_path(os.path.join("assets", "icon.png"))
+            icon_img = PhotoImage(file=icon_path)
+            self.root.iconphoto(True, icon_img)
+        except Exception:
+            try:
+                # Intento alternativo para Windows (.ico) si estuviera disponible
+                ico_path = resource_path(os.path.join("assets", "icon.ico"))
+                self.root.iconbitmap(ico_path)
+            except Exception:
+                pass
+
         self.pdf_files = []
         self.drag_index = None
 
@@ -139,7 +162,6 @@ class PDFMergerApp:
         if not output_file:
             return
 
-        # Crear ventana emergente de carga (Progress Dialog)
         progress_dialog = Toplevel(self.root)
         progress_dialog.title("Procesando PDF...")
         progress_dialog.geometry("380x130")
@@ -156,88 +178,93 @@ class PDFMergerApp:
         lbl_percent = Label(progress_dialog, text="0%", font=("Arial", 10, "bold"))
         lbl_percent.pack(pady=5)
 
-        # Desactivar botones principales
         self.btn_merge.config(state="disabled")
         self.btn_select.config(state="disabled")
 
-        # Lanzar el proceso en segundo plano
         threading.Thread(
-            target=self.process_pdfs, 
+            target=self.process_pdfs_pymupdf, 
             args=(output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent), 
             daemon=True
         ).start()
 
-    def process_pdfs(self, output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent):
+    def process_pdfs_pymupdf(self, output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent):
         try:
-            merger = PdfWriter()
+            doc_salida = pymupdf.open()
 
-            # Fase 1: Lectura y conteo de páginas
-            readers = []
-            total_pages = 0
+            documentos = []
+            total_paginas = 0
             for pdf in self.pdf_files:
-                reader = PdfReader(pdf)
-                readers.append(reader)
-                total_pages += len(reader.pages)
+                doc = pymupdf.open(pdf)
+                documentos.append(doc)
+                total_paginas += len(doc)
 
-            if total_pages == 0:
+            if total_paginas == 0:
                 raise Exception("Los archivos PDF seleccionados están vacíos o son inválidos.")
 
-            processed_pages = 0
+            paginas_procesadas = 0
 
-            # Fase 2: Agregar páginas al writer
-            for reader in readers:
-                for page in reader.pages:
-                    merger.add_page(page)
-                    processed_pages += 1
-                    current_pct = int((processed_pages / total_pages) * 40)
-                    progress_var.set(current_pct)
-                    lbl_percent.config(text=f"{current_pct}%")
+            for doc in documentos:
+                doc_salida.insert_pdf(doc)
+                paginas_procesadas += len(doc)
+                current_pct = int((paginas_procesadas / total_paginas) * 70)
+                progress_var.set(current_pct)
+                lbl_percent.config(text=f"{current_pct}%")
 
-            # Fase 3: Compresión (si aplica)
-            if nivel != "ninguna":
-                compression_processed = 0
-                for page in merger.pages:
-                    page.compress_content_streams()
-                    if nivel in ["medio", "alta"]:
-                        for img in page.images:
-                            try:
-                                img.replace(img.image, quality=(50 if nivel == "medio" else 25))
-                            except Exception:
-                                pass
-                    
-                    compression_processed += 1
-                    current_pct = 40 + int((compression_processed / total_pages) * 50)
-                    progress_var.set(current_pct)
-                    lbl_percent.config(text=f"{current_pct}%")
-            else:
-                progress_var.set(90)
-                lbl_percent.config(text="90%")
+            progress_var.set(80)
+            lbl_percent.config(text="80% (Optimizando y comprimiendo...)")
 
-            # Fase 4: Guardado final en disco
-            with open(output_file, "wb") as f:
-                merger.write(f)
-            merger.close()
+            garbage_val = 0
+            deflate_val = False
+            deflate_images_val = False
+
+            if nivel == "baja":
+                garbage_val = 2
+                deflate_val = True
+                deflate_images_val = True
+            elif nivel == "medio":
+                garbage_val = 4
+                deflate_val = True
+                deflate_images_val = True
+            elif nivel == "alta":
+                garbage_val = 4
+                deflate_val = True
+                deflate_images_val = True
+
+            progress_var.set(90)
+            lbl_percent.config(text="90% (Guardando en disco...)")
+
+            doc_salida.save(
+                output_file,
+                garbage=garbage_val,
+                deflate=deflate_val,
+                deflate_images=deflate_images_val
+            )
+            
+            doc_salida.close()
+            for doc in documentos:
+                doc.close()
 
             progress_var.set(100)
             lbl_percent.config(text="100%")
 
             msg_exito = (
-                f"¡PDF comprimido correctamente!\nGuardado en:\n{output_file}"
+                f"¡PDF comprimido correctamente con PyMuPDF!\nGuardado en:\n{output_file}"
                 if es_unico_archivo
                 else f"¡PDFs unidos y comprimidos correctamente!\nGuardado en:\n{output_file}"
             )
             
-            self.root.after(0, lambda: [
-                progress_dialog.destroy(),
-                messagebox.showinfo("Éxito", msg_exito),
+            self.root.after(0, lambda m=msg_exito, pd=progress_dialog: [
+                pd.destroy(),
+                messagebox.showinfo("Éxito", m),
                 self.clear_list(),
                 self.reset_ui()
             ])
 
         except Exception as e:
-            self.root.after(0, lambda: [
-                progress_dialog.destroy(),
-                messagebox.showerror("Error", f"Ocurrió un error al procesar el/los PDF(s):\n{str(e)}"),
+            error_msg = str(e)
+            self.root.after(0, lambda err=error_msg, pd=progress_dialog: [
+                pd.destroy(),
+                messagebox.showerror("Error", f"Ocurrió un error al procesar el/los PDF(s):\n{err}"),
                 self.reset_ui()
             ])
 
