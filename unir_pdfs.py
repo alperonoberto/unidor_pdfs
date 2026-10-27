@@ -1,47 +1,155 @@
 import os
+import sys
 import threading
-from tkinter import Tk, Toplevel, Listbox, Button, Label, Scrollbar, StringVar, DoubleVar, Radiobutton, END, messagebox, filedialog
-from tkinter.ttk import Progressbar
-from pypdf import PdfWriter, PdfReader
+import urllib.request
+import json
+import webbrowser
+import customtkinter as ctk
+from tkinter import messagebox, filedialog
+import pymupdf
+
+# Versión actual de la aplicación (¡Actualízala cada vez que lances una nueva release!)
+CURRENT_VERSION = "v1.0.0"
+GITHUB_REPO = "alperonoberto/unidor_pdfs"  # Cambia esto por tu usuario/repositorio real
+
+# Configuración inicial del tema global
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("blue")
+
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta al recurso, compatible con desarrollo y con PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 class PDFMergerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Unidor y Compresor de PDFs")
-        self.root.geometry("500x450")
+        self.root.geometry("520x540")
         self.root.resizable(False, False)
+        
+        # Carga de icono seguro
+        try:
+            icon_path = resource_path(os.path.join("assets", "icon.png"))
+            icon_img = ctk.CTkImage(light_image=None, dark_image=None)
+        except Exception:
+            pass
+
         self.pdf_files = []
-        self.drag_index = None
+        self.file_widgets = []
+        self.selected_file_index = None
 
-        # Etiqueta de título
-        self.label = Label(root, text="Selecciona los PDFs que deseas procesar:", font=("Arial", 12, "bold"))
-        self.label.pack(pady=10)
+        # --- CONTENEDOR PRINCIPAL ---
+        self.main_frame = ctk.CTkFrame(root, fg_color="transparent")
+        self.main_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Listbox para mostrar los archivos seleccionados
-        self.listbox_frame = Label(root)
-        self.listbox_frame.pack(fill="both", expand=True, padx=20)
+        # Título principal
+        self.label = ctk.CTkLabel(
+            self.main_frame, 
+            text="Gestor y Compresor de PDFs", 
+            font=ctk.CTkFont(family="Helvetica", size=18, weight="bold")
+        )
+        self.label.pack(anchor="w", pady=(0, 10))
 
-        self.scrollbar = Scrollbar(self.listbox_frame)
-        self.scrollbar.pack(side="right", fill="y")
+        # --- ÁREA DE LISTA DE ARCHIVOS (Tarjeta con scroll) ---
+        self.list_container = ctk.CTkScrollableFrame(
+            self.main_frame, 
+            width=480, 
+            height=220, 
+            corner_radius=10,
+            border_width=1,
+            border_color=("#d1d5db", "#374151")
+        )
+        self.list_container.pack(pady=(0, 15))
+        
+        # Etiqueta de estado vacío dentro del contenedor
+        self.placeholder_label = ctk.CTkLabel(
+            self.list_container, 
+            text="No hay archivos seleccionados.\nHaz clic en 'Agregar PDFs' para comenzar.",
+            text_color=("gray50", "gray50")
+        )
+        self.placeholder_label.pack(pady=70)
 
-        self.pdf_listbox = Listbox(self.listbox_frame, selectmode="extended", yscrollcommand=self.scrollbar.set, font=("Arial", 10))
-        self.pdf_listbox.pack(side="left", fill="both", expand=True)
-        self.scrollbar.config(command=self.pdf_listbox.yview)
-        self.pdf_listbox.bind("<Button-1>", self.start_drag)
-        self.pdf_listbox.bind("<B1-Motion>", self.drag_item)
+        # --- BOTONERA ---
+        self.btn_select = ctk.CTkButton(
+            self.main_frame, 
+            text="+ Agregar PDFs", 
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="#2563eb", hover_color="#1d4ed8",
+            corner_radius=8, height=38,
+            command=self.select_files
+        )
+        self.btn_select.pack(fill="x", pady=(0, 8))
 
-        # Botones de control
-        self.btn_select = Button(root, text="Agregar PDFs", bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), command=self.select_files)
-        self.btn_select.pack(fill="x", padx=20, pady=5)
+        # Fila de botones secundarios (Eliminar / Limpiar)
+        self.sub_buttons_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.sub_buttons_frame.pack(fill="x", pady=(0, 15))
 
-        self.btn_remove = Button(root, text="Eliminar seleccionado", bg="#f44336", fg="white", font=("Arial", 10), command=self.remove_selected)
-        self.btn_remove.pack(fill="x", padx=20, pady=2)
+        self.btn_remove = ctk.CTkButton(
+            self.sub_buttons_frame, 
+            text="Eliminar selección", 
+            font=ctk.CTkFont(size=12),
+            fg_color="#dc2626", hover_color="#b91c1c",
+            corner_radius=8, height=32,
+            command=self.remove_selected
+        )
+        self.btn_remove.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
-        self.btn_clear = Button(root, text="Limpiar lista", bg="#9e9e9e", fg="white", font=("Arial", 10), command=self.clear_list)
-        self.btn_clear.pack(fill="x", padx=20, pady=2)
+        self.btn_clear = ctk.CTkButton(
+            self.sub_buttons_frame, 
+            text="Limpiar lista", 
+            font=ctk.CTkFont(size=12),
+            fg_color="#6b7280", hover_color="#4b5563",
+            corner_radius=8, height=32,
+            command=self.clear_list
+        )
+        self.btn_clear.pack(side="right", fill="x", expand=True, padx=(5, 0))
 
-        self.btn_merge = Button(root, text="Procesar PDF(s)", bg="#2196F3", fg="white", font=("Arial", 11, "bold"), command=self.start_processing_workflow)
-        self.btn_merge.pack(fill="x", padx=20, pady=10)
+        # Botón de acción principal (Procesar)
+        self.btn_merge = ctk.CTkButton(
+            self.main_frame, 
+            text="🚀 Procesar PDF(s)", 
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#16a34a", hover_color="#15803d",
+            corner_radius=8, height=42,
+            command=self.start_processing_workflow
+        )
+        self.btn_merge.pack(fill="x")
+
+        # Lanzar comprobación de actualizaciones automática en segundo plano al iniciar
+        threading.Thread(target=self.check_for_updates, daemon=True).start()
+
+    def check_for_updates(self):
+        """Consulta la API de GitHub para verificar si hay una nueva versión."""
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+            req = urllib.request.Request(
+                url, 
+                headers={"User-Agent": "PDFMergerApp-Updater"}
+            )
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                latest_version = data["tag_name"]  # Ejemplo: "v1.1.0"
+                release_url = data["html_url"]     # URL de la release en GitHub
+
+                # Comparamos versiones (si son distintas, notificamos)
+                if latest_version != CURRENT_VERSION:
+                    # Mostramos la ventana de aviso en el hilo principal de Tkinter
+                    self.root.after(0, lambda: self.show_update_dialog(latest_version, release_url))
+        except Exception:
+            # Si falla la conexión (ej. sin internet), se ignora silenciosamente para no molestar al usuario
+            pass
+
+    def show_update_dialog(self, latest_version, release_url):
+        """Muestra una ventana emergente invitando al usuario a actualizar."""
+        if messagebox.askyesno(
+            "Actualización disponible", 
+            f"¡Hay una nueva versión disponible ({latest_version})!\n\n¿Deseas abrir la página de descargas en tu navegador?"
+        ):
+            webbrowser.open(release_url)
 
     def select_files(self):
         files = filedialog.askopenfilenames(
@@ -51,74 +159,95 @@ class PDFMergerApp:
         for file in files:
             if file not in self.pdf_files:
                 self.pdf_files.append(file)
-        self.refresh_listbox()
+        self.refresh_file_list()
 
     def remove_selected(self):
-        selected_indices = self.pdf_listbox.curselection()
-        for index in reversed(selected_indices):
-            del self.pdf_files[index]
-        self.refresh_listbox()
+        if self.selected_file_index is not None and 0 <= self.selected_file_index < len(self.pdf_files):
+            del self.pdf_files[self.selected_file_index]
+            self.selected_file_index = None
+            self.refresh_file_list()
 
     def clear_list(self):
         self.pdf_files.clear()
-        self.refresh_listbox()
+        self.selected_file_index = None
+        self.refresh_file_list()
 
-    def refresh_listbox(self):
-        self.pdf_listbox.delete(0, END)
-        for index, pdf in enumerate(self.pdf_files, start=1):
-            self.pdf_listbox.insert(END, f"{index}. {pdf}")
+    def select_item_in_ui(self, index):
+        self.selected_file_index = index
+        for i, w in enumerate(self.file_widgets):
+            if i == index:
+                w.configure(fg_color=("#e2e8f0", "#334155"))
+            else:
+                w.configure(fg_color="transparent")
 
-    def start_drag(self, event):
-        index = self.pdf_listbox.nearest(event.y)
-        self.drag_index = index if 0 <= index < len(self.pdf_files) else None
+    def refresh_file_list(self):
+        for w in self.file_widgets:
+            w.destroy()
+        self.file_widgets.clear()
 
-    def drag_item(self, event):
-        if self.drag_index is None or not self.pdf_files:
+        if not self.pdf_files:
+            self.placeholder_label.pack(pady=70)
             return
+        
+        self.placeholder_label.pack_forget()
 
-        target_index = self.pdf_listbox.nearest(event.y)
-        target_index = max(0, min(target_index, len(self.pdf_files) - 1))
-        if target_index == self.drag_index:
-            return
+        for idx, pdf in enumerate(self.pdf_files):
+            file_name = os.path.basename(pdf)
+            
+            item_frame = ctk.CTkFrame(self.list_container, fg_color="transparent", corner_radius=6, height=35)
+            item_frame.pack(fill="x", pady=2, padx=2)
+            
+            lbl = ctk.CTkLabel(item_frame, text=f"{idx + 1}. {file_name}", anchor="w", font=ctk.CTkFont(size=12))
+            lbl.pack(side="left", padx=10, fill="x", expand=True)
 
-        pdf = self.pdf_files.pop(self.drag_index)
-        self.pdf_files.insert(target_index, pdf)
-        self.drag_index = target_index
-        self.refresh_listbox()
-        self.pdf_listbox.selection_set(target_index)
-        self.pdf_listbox.activate(target_index)
-        self.pdf_listbox.see(target_index)
+            item_frame.bind("<Button-1>", lambda e, i=idx: self.select_item_in_ui(i))
+            lbl.bind("<Button-1>", lambda e, i=idx: self.select_item_in_ui(i))
+
+            self.file_widgets.append(item_frame)
 
     def pedir_nivel_compresion(self):
-        """Muestra una ventana emergente modal para elegir el nivel de compresión."""
-        ventana = Toplevel(self.root)
-        ventana.title("Nivel de Compresión")
-        ventana.geometry("360x250")
-        ventana.resizable(False, False)
-        ventana.grab_set()
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Nivel de Compresión")
+        dialog.geometry("380x300")
+        dialog.resizable(False, False)
+        dialog.grab_set()
 
-        seleccion = StringVar(value="medio")
+        ctk.CTkLabel(dialog, text="Selecciona el nivel de compresión:", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=15)
 
-        Label(ventana, text="Selecciona el nivel de compresión:", font=("Arial", 10, "bold")).pack(pady=12)
+        seleccion = ctk.StringVar(value="medio")
 
-        Radiobutton(ventana, text="Sin compresión (Máxima calidad)", variable=seleccion, value="ninguna").pack(anchor="w", padx=30, pady=4)
-        Radiobutton(ventana, text="Compresión baja (Calidad alta)", variable=seleccion, value="baja").pack(anchor="w", padx=30, pady=4)
-        Radiobutton(ventana, text="Compresión media (Recomendado)", variable=seleccion, value="medio").pack(anchor="w", padx=30, pady=4)
-        Radiobutton(ventana, text="Compresión alta (Menor calidad / Más ligero)", variable=seleccion, value="alta").pack(anchor="w", padx=30, pady=4)
+        options = [
+            ("Sin compresión (Máxima calidad)", "ninguna"),
+            ("Compresión baja (Calidad alta)", "baja"),
+            ("Compresión media (Recomendado)", "medio"),
+            ("Compresión alta (Más ligero)", "alta")
+        ]
+
+        for text, val in options:
+            rb = ctk.CTkRadioButton(dialog, text=text, variable=seleccion, value=val, font=ctk.CTkFont(size=12))
+            rb.pack(anchor="w", padx=40, pady=5)
 
         resultado = {"nivel": None}
 
         def confirmar():
             resultado["nivel"] = seleccion.get()
-            ventana.destroy()
+            dialog.destroy()
 
-        Button(ventana, text="Aceptar", command=confirmar, bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), width=12).pack(pady=12)
+        btn_aceptar = ctk.CTkButton(
+            dialog, 
+            text="Aceptar", 
+            command=confirmar, 
+            fg_color="#16a34a", 
+            hover_color="#15803d", 
+            height=35,
+            font=ctk.CTkFont(size=13, weight="bold")
+        )
+        btn_aceptar.pack(pady=20)
         
-        ventana.wait_window()
+        dialog.wait_window()
         return resultado["nivel"]
 
     def start_processing_workflow(self):
-        """Gestiona el flujo completo: validación, diálogo de compresión, ruta de guardado y ejecución en hilo."""
         if not self.pdf_files:
             messagebox.showwarning("Advertencia", "No hay archivos PDF seleccionados para procesar.")
             return
@@ -139,87 +268,73 @@ class PDFMergerApp:
         if not output_file:
             return
 
-        # Crear ventana emergente de carga (Progress Dialog)
-        progress_dialog = Toplevel(self.root)
-        progress_dialog.title("Procesando PDF...")
-        progress_dialog.geometry("380x130")
+        progress_dialog = ctk.CTkToplevel(self.root)
+        progress_dialog.title("Procesando...")
+        progress_dialog.geometry("360x140")
         progress_dialog.resizable(False, False)
         progress_dialog.protocol("WM_DELETE_WINDOW", lambda: None)
         progress_dialog.grab_set()
 
-        Label(progress_dialog, text="Por favor, espere mientras se procesa el archivo...", font=("Arial", 9)).pack(pady=12)
+        ctk.CTkLabel(progress_dialog, text="Optimizando y procesando archivo...", font=ctk.CTkFont(size=12)).pack(pady=15)
 
-        progress_var = DoubleVar(value=0)
-        progress_bar = Progressbar(progress_dialog, orient="horizontal", length=320, mode="determinate", variable=progress_var)
+        progress_bar = ctk.CTkProgressBar(progress_dialog, orientation="horizontal", width=300)
         progress_bar.pack(pady=5)
+        progress_bar.set(0)
 
-        lbl_percent = Label(progress_dialog, text="0%", font=("Arial", 10, "bold"))
+        lbl_percent = ctk.CTkLabel(progress_dialog, text="0%", font=ctk.CTkFont(size=12, weight="bold"))
         lbl_percent.pack(pady=5)
 
-        # Desactivar botones principales
-        self.btn_merge.config(state="disabled")
-        self.btn_select.config(state="disabled")
+        self.btn_merge.configure(state="disabled")
+        self.btn_select.configure(state="disabled")
 
-        # Lanzar el proceso en segundo plano
         threading.Thread(
-            target=self.process_pdfs, 
-            args=(output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent), 
+            target=self.process_pdfs_pymupdf, 
+            args=(output_file, nivel, es_unico_archivo, progress_dialog, progress_bar, lbl_percent), 
             daemon=True
         ).start()
 
-    def process_pdfs(self, output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent):
+    def process_pdfs_pymupdf(self, output_file, nivel, es_unico_archivo, progress_dialog, progress_bar, lbl_percent):
         try:
-            merger = PdfWriter()
+            doc_salida = pymupdf.open()
+            documentos = []
+            total_paginas = 0
 
-            # Fase 1: Lectura y conteo de páginas
-            readers = []
-            total_pages = 0
             for pdf in self.pdf_files:
-                reader = PdfReader(pdf)
-                readers.append(reader)
-                total_pages += len(reader.pages)
+                doc = pymupdf.open(pdf)
+                documentos.append(doc)
+                total_paginas += len(doc)
 
-            if total_pages == 0:
+            if total_paginas == 0:
                 raise Exception("Los archivos PDF seleccionados están vacíos o son inválidos.")
 
-            processed_pages = 0
+            paginas_procesadas = 0
+            for doc in documentos:
+                doc_salida.insert_pdf(doc)
+                paginas_procesadas += len(doc)
+                current_pct = (paginas_procesadas / total_paginas) * 0.7
+                progress_bar.set(current_pct)
+                lbl_percent.configure(text=f"{int(current_pct * 100)}%")
 
-            # Fase 2: Agregar páginas al writer
-            for reader in readers:
-                for page in reader.pages:
-                    merger.add_page(page)
-                    processed_pages += 1
-                    current_pct = int((processed_pages / total_pages) * 40)
-                    progress_var.set(current_pct)
-                    lbl_percent.config(text=f"{current_pct}%")
+            progress_bar.set(0.8)
+            lbl_percent.configure(text="80% (Optimización final...)")
 
-            # Fase 3: Compresión (si aplica)
-            if nivel != "ninguna":
-                compression_processed = 0
-                for page in merger.pages:
-                    page.compress_content_streams()
-                    if nivel in ["medio", "alta"]:
-                        for img in page.images:
-                            try:
-                                img.replace(img.image, quality=(50 if nivel == "medio" else 25))
-                            except Exception:
-                                pass
-                    
-                    compression_processed += 1
-                    current_pct = 40 + int((compression_processed / total_pages) * 50)
-                    progress_var.set(current_pct)
-                    lbl_percent.config(text=f"{current_pct}%")
-            else:
-                progress_var.set(90)
-                lbl_percent.config(text="90%")
+            garbage_val = 2 if nivel == "baja" else (4 if nivel in ["medio", "alta"] else 0)
+            deflate_val = nivel != "ninguna"
+            deflate_images_val = nivel != "ninguna"
 
-            # Fase 4: Guardado final en disco
-            with open(output_file, "wb") as f:
-                merger.write(f)
-            merger.close()
+            doc_salida.save(
+                output_file,
+                garbage=garbage_val,
+                deflate=deflate_val,
+                deflate_images=deflate_images_val
+            )
+            
+            doc_salida.close()
+            for doc in documentos:
+                doc.close()
 
-            progress_var.set(100)
-            lbl_percent.config(text="100%")
+            progress_bar.set(1.0)
+            lbl_percent.configure(text="100%")
 
             msg_exito = (
                 f"¡PDF comprimido correctamente!\nGuardado en:\n{output_file}"
@@ -227,26 +342,26 @@ class PDFMergerApp:
                 else f"¡PDFs unidos y comprimidos correctamente!\nGuardado en:\n{output_file}"
             )
             
-            self.root.after(0, lambda: [
-                progress_dialog.destroy(),
-                messagebox.showinfo("Éxito", msg_exito),
+            self.root.after(0, lambda m=msg_exito, pd=progress_dialog: [
+                pd.destroy(),
+                messagebox.showinfo("Éxito", m),
                 self.clear_list(),
                 self.reset_ui()
             ])
 
         except Exception as e:
-            self.root.after(0, lambda: [
-                progress_dialog.destroy(),
-                messagebox.showerror("Error", f"Ocurrió un error al procesar el/los PDF(s):\n{str(e)}"),
+            error_msg = str(e)
+            self.root.after(0, lambda err=error_msg, pd=progress_dialog: [
+                pd.destroy(),
+                messagebox.showerror("Error", f"Ocurrió un error al procesar el archivo:\n{err}"),
                 self.reset_ui()
             ])
 
     def reset_ui(self):
-        """Restaura los botones principales."""
-        self.btn_merge.config(state="normal")
-        self.btn_select.config(state="normal")
+        self.btn_merge.configure(state="normal")
+        self.btn_select.configure(state="normal")
 
 if __name__ == "__main__":
-    root = Tk()
+    root = ctk.CTk()
     app = PDFMergerApp(root)
     root.mainloop()
