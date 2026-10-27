@@ -8,16 +8,13 @@ import customtkinter as ctk
 from tkinter import messagebox, filedialog
 import pymupdf
 
-# Versión actual de la aplicación (¡Actualízala cada vez que lances una nueva release!)
-CURRENT_VERSION = "v1.0.0"
-GITHUB_REPO = "alperonoberto/unidor_pdfs"  # Cambia esto por tu usuario/repositorio real
+# Versión actual de la aplicación
+CURRENT_VERSION = "v1.0.8"
+GITHUB_REPO = "alperonoberto/unidor_pdfs"
 
 # Configuración inicial del tema global
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
-
-from tkinter import Tk, Toplevel, Listbox, Button, Label, Scrollbar, StringVar, DoubleVar, Radiobutton, END, messagebox, filedialog, PhotoImage
-from tkinter.ttk import Progressbar
 
 def resource_path(relative_path):
     """ Obtiene la ruta absoluta al recurso, compatible con desarrollo y con PyInstaller """
@@ -34,23 +31,14 @@ class PDFMergerApp:
         self.root.geometry("520x540")
         self.root.resizable(False, False)
 
-        # Carga de icono seguro
+        # Carga robusta y segura del icono para CustomTkinter
         try:
             icon_path = resource_path(os.path.join("assets", "icon.png"))
-            icon_img = ctk.CTkImage(light_image=None, dark_image=None)
-        except Exception:
-            pass
-
-        # Carga robusta y segura del icono para cualquier sistema operativo compatible con PyInstaller
-        try:
-            icon_path = resource_path(os.path.join("assets", "icon.png"))
-            icon_img = PhotoImage(file=icon_path)
-            self.root.iconphoto(True, icon_img)
+            self.root.iconbitmap(icon_path) # Si es .ico en Windows
         except Exception:
             try:
-                # Intento alternativo para Windows (.ico) si estuviera disponible
-                ico_path = resource_path(os.path.join("assets", "icon.ico"))
-                self.root.iconbitmap(ico_path)
+                # Alternativa segura para Linux / PNG
+                icon_img = ctk.CTkImage(light_image=None, dark_image=None)
             except Exception:
                 pass
 
@@ -148,19 +136,15 @@ class PDFMergerApp:
             )
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
-                latest_version = data["tag_name"]  # Ejemplo: "v1.1.0"
-                release_url = data["html_url"]     # URL de la release en GitHub
+                latest_version = data["tag_name"]
+                release_url = data["html_url"]
 
-                # Comparamos versiones (si son distintas, notificamos)
                 if latest_version != CURRENT_VERSION:
-                    # Mostramos la ventana de aviso en el hilo principal de Tkinter
                     self.root.after(0, lambda: self.show_update_dialog(latest_version, release_url))
         except Exception:
-            # Si falla la conexión (ej. sin internet), se ignora silenciosamente para no molestar al usuario
             pass
 
     def show_update_dialog(self, latest_version, release_url):
-        """Muestra una ventana emergente invitando al usuario a actualizar."""
         if messagebox.askyesno(
             "Actualización disponible", 
             f"¡Hay una nueva versión disponible ({latest_version})!\n\n¿Deseas abrir la página de descargas en tu navegador?"
@@ -287,11 +271,6 @@ class PDFMergerApp:
         progress_dialog = ctk.CTkToplevel(self.root)
         progress_dialog.title("Procesando...")
         progress_dialog.geometry("360x140")
-
-        progress_dialog = Toplevel(self.root)
-        progress_dialog.title("Procesando PDF...")
-        progress_dialog.geometry("380x130")
-
         progress_dialog.resizable(False, False)
         progress_dialog.protocol("WM_DELETE_WINDOW", lambda: None)
         progress_dialog.grab_set()
@@ -320,22 +299,6 @@ class PDFMergerApp:
             documentos = []
             total_paginas = 0
 
-        self.btn_merge.config(state="disabled")
-        self.btn_select.config(state="disabled")
-
-        threading.Thread(
-            target=self.process_pdfs_pymupdf, 
-            args=(output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent), 
-            daemon=True
-        ).start()
-
-    def process_pdfs_pymupdf(self, output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent):
-        try:
-            doc_salida = pymupdf.open()
-
-            documentos = []
-            total_paginas = 0
-
             for pdf in self.pdf_files:
                 doc = pymupdf.open(pdf)
                 documentos.append(doc)
@@ -356,21 +319,6 @@ class PDFMergerApp:
             progress_bar.set(0.8)
             lbl_percent.configure(text="80% (Optimización final...)")
 
-            garbage_val = 2 if nivel == "baja" else (4 if nivel in ["medio", "alta"] else 0)
-            deflate_val = nivel != "ninguna"
-            deflate_images_val = nivel != "ninguna"
-
-
-            for doc in documentos:
-                doc_salida.insert_pdf(doc)
-                paginas_procesadas += len(doc)
-                current_pct = int((paginas_procesadas / total_paginas) * 70)
-                progress_var.set(current_pct)
-                lbl_percent.config(text=f"{current_pct}%")
-
-            progress_var.set(80)
-            lbl_percent.config(text="80% (Optimizando y comprimiendo...)")
-
             garbage_val = 0
             deflate_val = False
             deflate_images_val = False
@@ -388,9 +336,8 @@ class PDFMergerApp:
                 deflate_val = True
                 deflate_images_val = True
 
-            progress_var.set(90)
-            lbl_percent.config(text="90% (Guardando en disco...)")
-
+            progress_bar.set(0.9)
+            lbl_percent.configure(text="90% (Guardando en disco...)")
 
             doc_salida.save(
                 output_file,
@@ -407,7 +354,7 @@ class PDFMergerApp:
             lbl_percent.configure(text="100%")
 
             msg_exito = (
-                f"¡PDF comprimido correctamente con PyMuPDF!\nGuardado en:\n{output_file}"
+                f"¡PDF comprimido correctamente!\nGuardado en:\n{output_file}"
                 if es_unico_archivo
                 else f"¡PDFs unidos y comprimidos correctamente!\nGuardado en:\n{output_file}"
             )
@@ -424,7 +371,6 @@ class PDFMergerApp:
             self.root.after(0, lambda err=error_msg, pd=progress_dialog: [
                 pd.destroy(),
                 messagebox.showerror("Error", f"Ocurrió un error al procesar el archivo:\n{err}"),
-                messagebox.showerror("Error", f"Ocurrió un error al procesar el/los PDF(s):\n{err}"),
                 self.reset_ui()
             ])
 
