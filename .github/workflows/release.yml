@@ -1,17 +1,21 @@
-# Release config file
-name: Build and Release Windows Executable
+name: Build and Release Executables
 
 on:
-  push:
-    tags:
-      - 'v*' # Se activará cada vez que subas un tag que empiece por 'v' (ej. v1.0.0)
+  release:
+    types: [published]
 
 jobs:
   build:
-    runs-on: windows-latest
-
-    permissions:
-      contents: write
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            asset_path: dist/unir_pdfs.exe
+          - os: ubuntu-latest
+            asset_path: dist/unir_pdfs
 
     steps:
     - name: Checkout repository
@@ -22,17 +26,74 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install dependencies
+    # Instalación de dependencias (Windows)
+    - name: Install dependencies (Windows)
+      if: startsWith(matrix.os, 'windows')
       run: |
         python -m pip install --upgrade pip
         if (Test-Path "requirements.txt") { pip install -r requirements.txt }
         pip install pyinstaller
 
-    - name: Build with PyInstaller
+    # Instalación de dependencias (Linux)
+    - name: Install dependencies (Linux)
+      if: startsWith(matrix.os, 'ubuntu')
       run: |
-        pyinstaller --noconfirm --onefile --windowed unir_pdfs.py
+        python -m pip install --upgrade pip
+        if [ -f "requirements.txt" ]; then pip install -r requirements.txt; fi
+        pip install pyinstaller
 
-    - name: Release and Upload Asset
+    # Build con PyInstaller para Windows
+    - name: Build with PyInstaller (Windows)
+      if: startsWith(matrix.os, 'windows')
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" --collect-all pymupdf unir_pdfs.py
+
+    # Build con PyInstaller para Linux
+    - name: Build with PyInstaller (Linux)
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --add-data "assets:assets" --collect-all pymupdf unir_pdfs.py
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: executable-${{ matrix.os }}
+        path: ${{ matrix.asset_path }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download Windows Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: executable-windows-latest
+        path: dist-windows
+
+    - name: Download Linux Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: executable-ubuntu-latest
+        path: dist-linux
+
+    # NUEVO: Renombramos los archivos para diferenciarlos claramente en el release
+    - name: Rename binaries for release
+      run: |
+        mkdir -p release-assets
+        # Copia y renombra el de Windows
+        mv dist-windows/unir_pdfs.exe release-assets/unir_pdfs-windows-amd64.exe
+        # Copia y renombra el de Linux
+        mv dist-linux/unir_pdfs release-assets/unir_pdfs-linux-amd64
+        ls -R release-assets
+
+    - name: Release and Upload Assets
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/*.exe
+        files: |
+          release-assets/*
