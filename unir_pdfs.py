@@ -9,7 +9,7 @@ class PDFMergerApp:
         self.root.geometry("500x450")
         self.root.resizable(False, False)
         self.pdf_files = []
-        self.drag_index = None
+        self.drag_indices = []
 
         # Etiqueta de título
         self.label = Label(root, text="Selecciona los PDFs que deseas unir:", font=("Arial", 12, "bold"))
@@ -27,6 +27,7 @@ class PDFMergerApp:
         self.scrollbar.config(command=self.pdf_listbox.yview)
         self.pdf_listbox.bind("<Button-1>", self.start_drag)
         self.pdf_listbox.bind("<B1-Motion>", self.drag_item)
+        self.pdf_listbox.bind("<ButtonRelease-1>", self.end_drag)
 
         # Botones de control
         self.btn_select = Button(root, text="Agregar PDFs", bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), command=self.select_files)
@@ -68,24 +69,56 @@ class PDFMergerApp:
 
     def start_drag(self, event):
         index = self.pdf_listbox.nearest(event.y)
-        self.drag_index = index if 0 <= index < len(self.pdf_files) else None
+        if not 0 <= index < len(self.pdf_files):
+            self.drag_indices = []
+            return
+
+        selected_indices = list(self.pdf_listbox.curselection())
+        self.drag_indices = (
+            selected_indices if index in selected_indices else [index]
+        )
 
     def drag_item(self, event):
-        if self.drag_index is None or not self.pdf_files:
-            return
+        if not self.drag_indices or not self.pdf_files:
+            return "break"
 
         target_index = self.pdf_listbox.nearest(event.y)
         target_index = max(0, min(target_index, len(self.pdf_files) - 1))
-        if target_index == self.drag_index:
-            return
+        if target_index in self.drag_indices:
+            return "break"
 
-        pdf = self.pdf_files.pop(self.drag_index)
-        self.pdf_files.insert(target_index, pdf)
-        self.drag_index = target_index
+        dragged_files = [self.pdf_files[index] for index in self.drag_indices]
+        remaining_files = [
+            pdf for index, pdf in enumerate(self.pdf_files)
+            if index not in self.drag_indices
+        ]
+        insertion_index = target_index - sum(
+            index < target_index for index in self.drag_indices
+        )
+        if target_index > self.drag_indices[-1]:
+            insertion_index += 1
+        insertion_index = max(0, min(insertion_index, len(remaining_files)))
+        reordered_files = (
+            remaining_files[:insertion_index]
+            + dragged_files
+            + remaining_files[insertion_index:]
+        )
+        if reordered_files == self.pdf_files:
+            return "break"
+
+        self.pdf_files[:] = reordered_files
+        self.drag_indices = list(
+            range(insertion_index, insertion_index + len(dragged_files))
+        )
         self.refresh_listbox()
-        self.pdf_listbox.selection_set(target_index)
-        self.pdf_listbox.activate(target_index)
-        self.pdf_listbox.see(target_index)
+        for index in self.drag_indices:
+            self.pdf_listbox.selection_set(index)
+        self.pdf_listbox.activate(self.drag_indices[0])
+        self.pdf_listbox.see(self.drag_indices[0])
+        return "break"
+
+    def end_drag(self, _event):
+        self.drag_indices = []
 
     def merge_pdfs(self):
         pdfs = self.pdf_files
