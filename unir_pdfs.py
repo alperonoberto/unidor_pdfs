@@ -16,6 +16,9 @@ GITHUB_REPO = "alperonoberto/unidor_pdfs"  # Cambia esto por tu usuario/reposito
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
+from tkinter import Tk, Toplevel, Listbox, Button, Label, Scrollbar, StringVar, DoubleVar, Radiobutton, END, messagebox, filedialog, PhotoImage
+from tkinter.ttk import Progressbar
+
 def resource_path(relative_path):
     """ Obtiene la ruta absoluta al recurso, compatible con desarrollo y con PyInstaller """
     try:
@@ -30,13 +33,26 @@ class PDFMergerApp:
         self.root.title("Unidor y Compresor de PDFs")
         self.root.geometry("520x540")
         self.root.resizable(False, False)
-        
+
         # Carga de icono seguro
         try:
             icon_path = resource_path(os.path.join("assets", "icon.png"))
             icon_img = ctk.CTkImage(light_image=None, dark_image=None)
         except Exception:
             pass
+
+        # Carga robusta y segura del icono para cualquier sistema operativo compatible con PyInstaller
+        try:
+            icon_path = resource_path(os.path.join("assets", "icon.png"))
+            icon_img = PhotoImage(file=icon_path)
+            self.root.iconphoto(True, icon_img)
+        except Exception:
+            try:
+                # Intento alternativo para Windows (.ico) si estuviera disponible
+                ico_path = resource_path(os.path.join("assets", "icon.ico"))
+                self.root.iconbitmap(ico_path)
+            except Exception:
+                pass
 
         self.pdf_files = []
         self.file_widgets = []
@@ -271,6 +287,11 @@ class PDFMergerApp:
         progress_dialog = ctk.CTkToplevel(self.root)
         progress_dialog.title("Procesando...")
         progress_dialog.geometry("360x140")
+
+        progress_dialog = Toplevel(self.root)
+        progress_dialog.title("Procesando PDF...")
+        progress_dialog.geometry("380x130")
+
         progress_dialog.resizable(False, False)
         progress_dialog.protocol("WM_DELETE_WINDOW", lambda: None)
         progress_dialog.grab_set()
@@ -299,6 +320,22 @@ class PDFMergerApp:
             documentos = []
             total_paginas = 0
 
+        self.btn_merge.config(state="disabled")
+        self.btn_select.config(state="disabled")
+
+        threading.Thread(
+            target=self.process_pdfs_pymupdf, 
+            args=(output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent), 
+            daemon=True
+        ).start()
+
+    def process_pdfs_pymupdf(self, output_file, nivel, es_unico_archivo, progress_dialog, progress_var, lbl_percent):
+        try:
+            doc_salida = pymupdf.open()
+
+            documentos = []
+            total_paginas = 0
+
             for pdf in self.pdf_files:
                 doc = pymupdf.open(pdf)
                 documentos.append(doc)
@@ -308,6 +345,7 @@ class PDFMergerApp:
                 raise Exception("Los archivos PDF seleccionados están vacíos o son inválidos.")
 
             paginas_procesadas = 0
+
             for doc in documentos:
                 doc_salida.insert_pdf(doc)
                 paginas_procesadas += len(doc)
@@ -321,6 +359,38 @@ class PDFMergerApp:
             garbage_val = 2 if nivel == "baja" else (4 if nivel in ["medio", "alta"] else 0)
             deflate_val = nivel != "ninguna"
             deflate_images_val = nivel != "ninguna"
+
+
+            for doc in documentos:
+                doc_salida.insert_pdf(doc)
+                paginas_procesadas += len(doc)
+                current_pct = int((paginas_procesadas / total_paginas) * 70)
+                progress_var.set(current_pct)
+                lbl_percent.config(text=f"{current_pct}%")
+
+            progress_var.set(80)
+            lbl_percent.config(text="80% (Optimizando y comprimiendo...)")
+
+            garbage_val = 0
+            deflate_val = False
+            deflate_images_val = False
+
+            if nivel == "baja":
+                garbage_val = 2
+                deflate_val = True
+                deflate_images_val = True
+            elif nivel == "medio":
+                garbage_val = 4
+                deflate_val = True
+                deflate_images_val = True
+            elif nivel == "alta":
+                garbage_val = 4
+                deflate_val = True
+                deflate_images_val = True
+
+            progress_var.set(90)
+            lbl_percent.config(text="90% (Guardando en disco...)")
+
 
             doc_salida.save(
                 output_file,
@@ -337,7 +407,7 @@ class PDFMergerApp:
             lbl_percent.configure(text="100%")
 
             msg_exito = (
-                f"¡PDF comprimido correctamente!\nGuardado en:\n{output_file}"
+                f"¡PDF comprimido correctamente con PyMuPDF!\nGuardado en:\n{output_file}"
                 if es_unico_archivo
                 else f"¡PDFs unidos y comprimidos correctamente!\nGuardado en:\n{output_file}"
             )
@@ -354,6 +424,7 @@ class PDFMergerApp:
             self.root.after(0, lambda err=error_msg, pd=progress_dialog: [
                 pd.destroy(),
                 messagebox.showerror("Error", f"Ocurrió un error al procesar el archivo:\n{err}"),
+                messagebox.showerror("Error", f"Ocurrió un error al procesar el/los PDF(s):\n{err}"),
                 self.reset_ui()
             ])
 
