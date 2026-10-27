@@ -44,7 +44,9 @@ class PDFMergerApp:
 
         self.pdf_files = []
         self.file_widgets = []
+        self.file_labels = []
         self.selected_file_index = None
+        self.drag_widget = None
 
         # --- CONTENEDOR PRINCIPAL ---
         self.main_frame = ctk.CTkFrame(root, fg_color="transparent")
@@ -184,6 +186,8 @@ class PDFMergerApp:
         for w in self.file_widgets:
             w.destroy()
         self.file_widgets.clear()
+        self.file_labels.clear()
+        self.drag_widget = None
 
         if not self.pdf_files:
             self.placeholder_label.pack(pady=70)
@@ -200,10 +204,57 @@ class PDFMergerApp:
             lbl = ctk.CTkLabel(item_frame, text=f"{idx + 1}. {file_name}", anchor="w", font=ctk.CTkFont(size=12))
             lbl.pack(side="left", padx=10, fill="x", expand=True)
 
-            item_frame.bind("<Button-1>", lambda e, i=idx: self.select_item_in_ui(i))
-            lbl.bind("<Button-1>", lambda e, i=idx: self.select_item_in_ui(i))
+            for widget in (item_frame, lbl):
+                widget.bind(
+                    "<Button-1>",
+                    lambda event, row=item_frame: self.start_drag(event, row)
+                )
+                widget.bind("<B1-Motion>", self.drag_item)
+                widget.bind("<ButtonRelease-1>", self.end_drag)
 
             self.file_widgets.append(item_frame)
+            self.file_labels.append(lbl)
+
+    def start_drag(self, _event, row):
+        self.drag_widget = row
+        self.select_item_in_ui(self.file_widgets.index(row))
+        return "break"
+
+    def drag_item(self, event):
+        if self.drag_widget not in self.file_widgets:
+            return "break"
+
+        source_index = self.file_widgets.index(self.drag_widget)
+        target_index = len(self.file_widgets) - 1
+        for index, row in enumerate(self.file_widgets):
+            midpoint = row.winfo_rooty() + row.winfo_height() / 2
+            if event.y_root < midpoint:
+                target_index = index
+                break
+
+        if target_index == source_index:
+            return "break"
+
+        pdf = self.pdf_files.pop(source_index)
+        self.pdf_files.insert(target_index, pdf)
+        row = self.file_widgets.pop(source_index)
+        self.file_widgets.insert(target_index, row)
+        label = self.file_labels.pop(source_index)
+        self.file_labels.insert(target_index, label)
+        self.selected_file_index = target_index
+
+        for row in self.file_widgets:
+            row.pack_forget()
+        for index, row in enumerate(self.file_widgets):
+            row.pack(fill="x", pady=2, padx=2)
+            self.file_labels[index].configure(
+                text=f"{index + 1}. {os.path.basename(self.pdf_files[index])}"
+            )
+        self.select_item_in_ui(target_index)
+        return "break"
+
+    def end_drag(self, _event):
+        self.drag_widget = None
 
     def pedir_nivel_compresion(self):
         dialog = ctk.CTkToplevel(self.root)
