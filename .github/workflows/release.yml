@@ -1,9 +1,8 @@
 name: Build and Release Executables
 
 on:
-  push:
-    tags:
-      - 'v*' # Se activa al subir un tag que empiece por 'v' (ej. v1.0.0)
+  release:
+    types: [published]
 
 jobs:
   build:
