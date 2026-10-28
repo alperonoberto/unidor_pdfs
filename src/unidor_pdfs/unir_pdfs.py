@@ -139,8 +139,8 @@ class PDFMergerApp:
         )
         self.version_label.pack(fill="x", pady=(8, 0))
 
-        self.root.TkdndVersion = TkinterDnD._require(self.root)
-        self._register_drop_target(self.root)
+        TkinterDnD.require(self.root)
+        self._register_drop_target(self.main_frame)
 
         # Lanzar comprobación de actualizaciones automática en segundo plano al iniciar
         if APP_VERSION != "dev":
