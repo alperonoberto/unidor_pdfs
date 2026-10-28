@@ -185,7 +185,13 @@ def install_update(
     backup_path = _create_backup(executable_path)
     try:
         os.replace(staged_path, executable_path)
-        subprocess.Popen([str(executable_path)], cwd=executable_path.parent)
+        child_environment = os.environ.copy()
+        child_environment["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+        subprocess.Popen(
+            [str(executable_path)],
+            cwd=executable_path.parent,
+            env=child_environment,
+        )
     except Exception:
         if backup_path.exists():
             os.replace(backup_path, executable_path)

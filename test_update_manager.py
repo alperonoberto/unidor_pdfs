@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -220,12 +221,16 @@ class InstallUpdateTests(unittest.TestCase):
             staged_path.write_bytes(b"new executable")
             with (
                 patch("update_manager.platform.system", return_value="Linux"),
+                patch.dict(os.environ, {"UNIDOR_TEST_ENV": "preserved"}),
                 patch("update_manager.subprocess.Popen") as popen,
             ):
                 install_update(staged_path, executable_path, 123)
 
             self.assertEqual(executable_path.read_bytes(), b"new executable")
             popen.assert_called_once()
+            child_environment = popen.call_args.kwargs["env"]
+            self.assertEqual(child_environment["PYINSTALLER_RESET_ENVIRONMENT"], "1")
+            self.assertEqual(child_environment["UNIDOR_TEST_ENV"], "preserved")
             self.assertEqual(list(Path(directory).glob("*.backup")), [])
 
     def test_rolls_back_if_linux_restart_fails(self):
