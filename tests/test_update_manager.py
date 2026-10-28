@@ -215,15 +215,19 @@ class InstallUpdateTests(unittest.TestCase):
                     script,
                 )
                 self.assertIn(
-                    "[ShellIconCache]::SHChangeNotify(0x00002000, 0x0005, $TargetPath, [IntPtr]::Zero)",
+                    "SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero)",
+                    script,
+                )
+                self.assertIn(
+                    "[ShellIconCache]::RefreshAssociations()",
                     script,
                 )
                 self.assertLess(
                     script.index("[System.IO.File]::Replace"),
-                    script.index("[ShellIconCache]::SHChangeNotify"),
+                    script.index("[ShellIconCache]::RefreshAssociations"),
                 )
                 self.assertLess(
-                    script.index("[ShellIconCache]::SHChangeNotify"),
+                    script.index("[ShellIconCache]::RefreshAssociations"),
                     script.index("Start-Process"),
                 )
                 self.assertIn(

@@ -251,11 +251,15 @@ try {
 using System;
 using System.Runtime.InteropServices;
 public static class ShellIconCache {
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    public static extern void SHChangeNotify(uint eventId, uint flags, string path, IntPtr item);
+    [DllImport("shell32.dll")]
+    private static extern void SHChangeNotify(uint eventId, uint flags, IntPtr item1, IntPtr item2);
+
+    public static void RefreshAssociations() {
+        SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+    }
 }
 '@
-    [ShellIconCache]::SHChangeNotify(0x00002000, 0x0005, $TargetPath, [IntPtr]::Zero)
+    [ShellIconCache]::RefreshAssociations()
     $env:PYINSTALLER_RESET_ENVIRONMENT = '1'
     Start-Process -FilePath $TargetPath -WorkingDirectory (Split-Path $TargetPath)
     Remove-Item -LiteralPath $BackupPath -Force
