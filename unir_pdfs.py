@@ -303,7 +303,7 @@ class PDFMergerApp:
             content,
             text=message,
             justify="left",
-            wraplength=380,
+            wraplength=340,
             font=ctk.CTkFont(size=13),
         )
         message_label.pack(side="left", fill="both", expand=True)
