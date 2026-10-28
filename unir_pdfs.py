@@ -44,8 +44,6 @@ class PDFMergerApp:
             self.root.iconbitmap(
                 resource_path(os.path.join("assets", "logo_ico.ico"))
             )
-        elif system == "linux":
-            self.root.tk.call("wm", "class", self.root._w, "UnidorPDFs")
 
         self.pdf_files = []
         self.file_widgets = []

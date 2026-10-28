@@ -181,6 +181,37 @@ class DownloadUpdateTests(unittest.TestCase):
 
 
 class InstallUpdateTests(unittest.TestCase):
+    def test_windows_helper_uses_backup_path_when_replacing_executable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable_path = Path(directory) / "unir_pdfs.exe"
+            executable_path.write_bytes(b"old executable")
+            staged_path = Path(directory) / "staged.exe"
+            staged_path.write_bytes(b"new executable")
+            with (
+                patch("update_manager.platform.system", return_value="Windows"),
+                patch("update_manager.shutil.which", return_value="powershell.exe"),
+                patch("update_manager.subprocess.Popen") as popen,
+            ):
+                install_update(staged_path, executable_path, 123)
+
+            command = popen.call_args.args[0]
+            script_path = Path(command[8])
+            try:
+                script = script_path.read_text(encoding="utf-8")
+                self.assertIn(
+                    "[System.IO.File]::Replace($StagedPath, $TargetPath, $BackupPath)",
+                    script,
+                )
+                self.assertEqual(
+                    command[9:12],
+                    ["123", str(staged_path), str(executable_path)],
+                )
+                backup_path = Path(command[12])
+                self.assertEqual(backup_path.parent, executable_path.parent)
+                self.assertEqual(backup_path.suffix, ".backup")
+            finally:
+                script_path.unlink(missing_ok=True)
+
     def test_restarts_from_replaced_linux_executable(self):
         with tempfile.TemporaryDirectory() as directory:
             executable_path = Path(directory) / "unir_pdfs"
