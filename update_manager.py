@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from version_utils import is_newer_version, is_stable_version
+
 
 GITHUB_REPO = "alperonoberto/unidor_pdfs"
 MAX_UPDATE_SIZE = 512 * 1024 * 1024
@@ -32,15 +34,32 @@ class ReleaseAsset:
 
 
 def latest_release() -> dict[str, Any]:
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=10) as response:
-        release = json.loads(response.read().decode("utf-8"))
-    if not isinstance(release, dict) or not isinstance(release.get("tag_name"), str):
-        raise ValueError("La respuesta de GitHub no contiene una versión válida.")
-    if not isinstance(release.get("assets"), list):
-        raise ValueError("La respuesta de GitHub no contiene una lista de archivos.")
-    return release
+        releases = json.loads(response.read().decode("utf-8"))
+    if not isinstance(releases, list):
+        raise ValueError("La respuesta de GitHub no contiene una lista de versiones.")
+
+    latest = None
+    for release in releases:
+        if (
+            not isinstance(release, dict)
+            or release.get("draft")
+            or release.get("prerelease")
+            or not isinstance(release.get("tag_name"), str)
+            or not is_stable_version(release["tag_name"])
+            or not isinstance(release.get("assets"), list)
+        ):
+            continue
+        if latest is None or is_newer_version(
+            release["tag_name"], latest["tag_name"]
+        ):
+            latest = release
+
+    if latest is None:
+        raise ValueError("GitHub no contiene ninguna versión oficial disponible.")
+    return latest
 
 
 def select_release_asset(

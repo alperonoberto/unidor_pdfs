@@ -8,7 +8,7 @@ Una herramienta práctica, rápida y eficiente diseñada para simplificar la ges
 1. Dirígete a la sección de [Releases](https://github.com/alperonoberto/unidor_pdfs/releases) de este repositorio.
 2. Descarga el archivo ejecutable correspondiente a tu sistema operativo y a la última versión disponible.
 3. Ejecuta el archivo descargado para comenzar a unificar tus PDFs de forma inmediata.
->Las versiones oficiales para Windows y Linux x86-64 comprueban si hay actualizaciones al iniciar. Si hay una nueva versión, puedes confirmar su descarga e instalación desde el aviso; la aplicación se reiniciará automáticamente. La instalación requiere permisos de escritura en la carpeta donde está el ejecutable.
+>Las versiones oficiales para Windows y Linux x86-64 comprueban si hay actualizaciones al iniciar. Solo se tienen en cuenta versiones oficiales; se ignoran releases marcadas como pre-release o con etiquetas como `beta` o `rc`. Si hay una nueva versión, puedes confirmar su descarga e instalación desde el aviso; la aplicación se reiniciará automáticamente. La instalación requiere permisos de escritura en la carpeta donde está el ejecutable.
 ## 🛠️ Tecnologías Utilizadas
 Este proyecto está construido con tecnologías modernas para garantizar un rendimiento óptimo y una gran compatibilidad en entornos de escritorio.
 ## 🤝 Contribuciones
