@@ -128,6 +128,15 @@ class PDFMergerApp:
         )
         self.btn_merge.pack(fill="x")
 
+        self.version_label = ctk.CTkLabel(
+            self.main_frame,
+            text=f"Build: {APP_VERSION} · Autor: alperonoberto",
+            font=ctk.CTkFont(size=10),
+            text_color=("gray50", "gray60"),
+            anchor="e",
+        )
+        self.version_label.pack(fill="x", pady=(8, 0))
+
         # Lanzar comprobación de actualizaciones automática en segundo plano al iniciar
         if APP_VERSION != "dev":
             threading.Thread(target=self.check_for_updates, daemon=True).start()
