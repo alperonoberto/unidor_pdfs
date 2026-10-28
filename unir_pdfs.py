@@ -252,11 +252,9 @@ class PDFMergerApp:
             ctk.CTkButton(
                 buttons,
                 text="No",
-                fg_color=("#f3f4f6", "#374151"),
-                hover_color=("#e5e7eb", "#4b5563"),
-                text_color=("gray10", "gray90"),
-                border_color=("#9ca3af", "#6b7280"),
-                border_width=1,
+                fg_color=("#e71616", "#374151"),
+                hover_color=("#c90f0f", "#4b5563"),
+                text_color=("white", "white"),
                 command=lambda: finish(False),
                 width=100,
             ).pack(side="right", padx=(8, 0))
