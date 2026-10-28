@@ -247,6 +247,7 @@ $ErrorActionPreference = 'Stop'
 try {
     Wait-Process -Id $ParentPid -ErrorAction SilentlyContinue
     [System.IO.File]::Replace($StagedPath, $TargetPath, $BackupPath)
+    $env:PYINSTALLER_RESET_ENVIRONMENT = '1'
     Start-Process -FilePath $TargetPath -WorkingDirectory (Split-Path $TargetPath)
     Remove-Item -LiteralPath $BackupPath -Force
 } catch {

@@ -214,6 +214,10 @@ class InstallUpdateTests(unittest.TestCase):
                     "[System.IO.File]::Replace($StagedPath, $TargetPath, $BackupPath)",
                     script,
                 )
+                self.assertIn(
+                    "$env:PYINSTALLER_RESET_ENVIRONMENT = '1'",
+                    script,
+                )
                 self.assertEqual(
                     command[9:12],
                     ["123", str(staged_path), str(executable_path)],
