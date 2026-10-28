@@ -460,7 +460,10 @@ class PDFMergerApp:
         ctk.CTkButton(
             actions,
             text="Cancelar",
-            fg_color="transparent",
+            fg_color=("#f3f4f6", "#374151"),
+            hover_color=("#e5e7eb", "#4b5563"),
+            text_color=("gray10", "gray90"),
+            border_color=("#9ca3af", "#6b7280"),
             border_width=1,
             command=dialog.destroy,
         ).pack(side="right", padx=(8, 0))
