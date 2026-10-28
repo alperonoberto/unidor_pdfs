@@ -5,9 +5,11 @@ import threading
 import urllib.error
 from pathlib import Path
 import customtkinter as ctk
-from tkinter import PhotoImage
+from tkinter import PhotoImage, TclError
+from tkinterdnd2 import DND_FILES, TkinterDnD
 import pymupdf
 from unidor_pdfs.app_version import APP_VERSION
+from unidor_pdfs.pdf_files import collect_pdf_files
 from unidor_pdfs.version_utils import is_newer_version
 from unidor_pdfs.update_manager import (
     download_update,
@@ -77,7 +79,7 @@ class PDFMergerApp:
         # Etiqueta de estado vacío dentro del contenedor
         self.placeholder_label = ctk.CTkLabel(
             self.list_container, 
-            text="No hay archivos seleccionados.\nHaz clic en 'Agregar PDFs' para comenzar.",
+            text="No hay archivos seleccionados.\nHaz clic en 'Agregar PDFs' o arrastra PDFs aquí.",
             text_color=("gray50", "gray50")
         )
         self.placeholder_label.pack(pady=70)
@@ -136,6 +138,9 @@ class PDFMergerApp:
             anchor="e",
         )
         self.version_label.pack(fill="x", pady=(8, 0))
+
+        self.root.TkdndVersion = TkinterDnD._require(self.root)
+        self._register_drop_target(self.root)
 
         # Lanzar comprobación de actualizaciones automática en segundo plano al iniciar
         if APP_VERSION != "dev":
@@ -564,10 +569,56 @@ class PDFMergerApp:
         files = self._show_pdf_file_dialog("Seleccionar archivos PDF")
         if not files:
             return
-        for file in files:
-            if file not in self.pdf_files:
-                self.pdf_files.append(file)
-        self.refresh_file_list()
+        _, rejected_count = self._add_pdf_files(files)
+        if rejected_count:
+            self.show_message(
+                "Archivos omitidos",
+                f"Se omitieron {rejected_count} elemento(s) que no son archivos PDF válidos.",
+                kind="warning",
+            )
+
+    def _register_drop_target(self, widget):
+        widget.drop_target_register(DND_FILES)
+        widget.dnd_bind("<<Drop>>", self.on_files_dropped)
+        for child in widget.winfo_children():
+            self._register_drop_target(child)
+
+    def _add_pdf_files(self, paths):
+        new_files, rejected_count = collect_pdf_files(self.pdf_files, paths)
+        if new_files:
+            self.pdf_files.extend(new_files)
+            self.refresh_file_list()
+            for widget in self.file_widgets:
+                self._register_drop_target(widget)
+        return new_files, rejected_count
+
+    def on_files_dropped(self, event):
+        try:
+            paths = self.root.tk.splitlist(event.data)
+        except TclError as error:
+            self.show_message(
+                "No se pudieron leer los archivos",
+                f"No se pudieron interpretar los archivos soltados:\n{error}",
+                kind="error",
+            )
+            return "refuse_drop"
+
+        new_files, rejected_count = self._add_pdf_files(paths)
+        if rejected_count:
+            self.show_message(
+                "Archivos omitidos",
+                f"Se omitieron {rejected_count} elemento(s) que no son archivos PDF válidos.",
+                kind="warning",
+            )
+        if not new_files:
+            if not rejected_count:
+                self.show_message(
+                    "Sin archivos nuevos",
+                    "Los archivos PDF soltados ya están en la lista.",
+                    kind="info",
+                )
+            return "refuse_drop"
+        return "copy"
 
     def remove_selected(self):
         if self.selected_file_index is not None and 0 <= self.selected_file_index < len(self.pdf_files):

@@ -9,6 +9,7 @@ Aplicación de escritorio para unir varios archivos PDF en uno solo o comprimir 
 - **Cuatro niveles de compresión:** sin compresión, baja, media y alta.
 - **Ordenar documentos** arrastrándolos en la lista antes de procesarlos.
 - **Añadir archivos desde el explorador integrado**, navegar por carpetas y seleccionar varios PDF.
+- **Arrastrar varios PDF desde el escritorio** directamente a la ventana de la aplicación.
 - **Elegir la carpeta y el nombre del archivo de salida.** La extensión `.pdf` se añade automáticamente si hace falta y se pide confirmación antes de reemplazar un archivo existente.
 - **Indicador de progreso** durante el procesamiento y la descarga de actualizaciones.
 - **Interfaz adaptable** al modo claro u oscuro del sistema.
@@ -26,7 +27,7 @@ En Windows, SmartScreen puede mostrar un aviso al ejecutar un archivo descargado
 
 ## Cómo usarla
 
-1. Pulsa **Agregar PDFs** y selecciona uno o varios archivos. También puedes navegar entre carpetas desde el explorador integrado.
+1. Pulsa **Agregar PDFs** y selecciona uno o varios archivos, navega desde el explorador integrado o arrastra archivos PDF desde el escritorio a la ventana.
 2. Si seleccionaste varios documentos, arrástralos en la lista para establecer el orden. Usa **Eliminar selección** o **Limpiar lista** si necesitas modificarla.
 3. Pulsa **Procesar PDF(s)** y selecciona el nivel de compresión.
 4. Elige la carpeta y el nombre del archivo de salida.

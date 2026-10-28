@@ -51,13 +51,13 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: startsWith(matrix.os, 'windows')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --paths src --icon=assets/logo_ico.ico --add-data "assets;assets" --collect-all pymupdf src/unidor_pdfs/unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --paths src --icon=assets/logo_ico.ico --add-data "assets;assets" --collect-all pymupdf --collect-all tkinterdnd2 src/unidor_pdfs/unir_pdfs.py
 
     # Build con PyInstaller para Linux
     - name: Build with PyInstaller (Linux)
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --paths src --add-data "assets:assets" --collect-all pymupdf src/unidor_pdfs/unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --paths src --add-data "assets:assets" --collect-all pymupdf --collect-all tkinterdnd2 src/unidor_pdfs/unir_pdfs.py
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
