@@ -1,0 +1,188 @@
+import hashlib
+import io
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from update_manager import (
+    ReleaseAsset,
+    UpdateError,
+    download_update,
+    install_update,
+    select_release_asset,
+)
+
+
+class ReleaseAssetTests(unittest.TestCase):
+    def make_release(self, name, url=None):
+        return {
+            "assets": [
+                {
+                    "name": name,
+                    "browser_download_url": url or (
+                        "https://github.com/alperonoberto/unidor_pdfs/"
+                        "releases/download/v1.0.9/" + name
+                    ),
+                    "size": 1234,
+                    "digest": "sha256:" + "a" * 64,
+                }
+            ]
+        }
+
+    def test_selects_windows_amd64_asset(self):
+        asset = select_release_asset(
+            self.make_release("unir_pdfs-windows-amd64.exe"),
+            system="Windows",
+            machine="AMD64",
+        )
+        self.assertEqual(asset.name, "unir_pdfs-windows-amd64.exe")
+
+    def test_selects_linux_x86_64_asset(self):
+        asset = select_release_asset(
+            self.make_release("unir_pdfs-linux-amd64"),
+            system="Linux",
+            machine="x86_64",
+        )
+        self.assertEqual(asset.name, "unir_pdfs-linux-amd64")
+
+    def test_rejects_unsupported_system_and_architecture(self):
+        with self.assertRaises(UpdateError):
+            select_release_asset({}, system="Darwin", machine="x86_64")
+        with self.assertRaises(UpdateError):
+            select_release_asset({}, system="Linux", machine="aarch64")
+
+    def test_rejects_missing_platform_asset(self):
+        with self.assertRaises(UpdateError):
+            select_release_asset({}, system="Linux", machine="x86_64")
+
+    def test_rejects_asset_url_outside_github_release(self):
+        release = self.make_release(
+            "unir_pdfs-linux-amd64",
+            url="https://example.com/unir_pdfs-linux-amd64",
+        )
+        with self.assertRaises(UpdateError):
+            select_release_asset(release, system="Linux", machine="x86_64")
+
+    def test_rejects_unsupported_integrity_digest(self):
+        release = self.make_release("unir_pdfs-linux-amd64")
+        release["assets"][0]["digest"] = "md5:" + "a" * 32
+        with self.assertRaises(UpdateError):
+            select_release_asset(release, system="Linux", machine="x86_64")
+
+
+class DownloadUpdateTests(unittest.TestCase):
+    def test_downloads_and_verifies_linux_executable(self):
+        contents = b"\x7fELFtest"
+        asset = ReleaseAsset(
+            name="unir_pdfs-linux-amd64",
+            url="https://github.com/alperonoberto/unidor_pdfs/releases/download/v1/test",
+            size=len(contents),
+            digest="sha256:" + hashlib.sha256(contents).hexdigest(),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            executable_path = Path(directory) / "unir_pdfs"
+            executable_path.write_bytes(b"old executable")
+            executable_path.chmod(0o755)
+            with (
+                patch.object(sys, "frozen", True, create=True),
+                patch("update_manager.platform.system", return_value="Linux"),
+                patch(
+                    "update_manager.urllib.request.urlopen",
+                    return_value=io.BytesIO(contents),
+                ),
+            ):
+                staged_path = download_update(asset, executable_path)
+
+            self.assertEqual(staged_path.read_bytes(), contents)
+            self.assertTrue(staged_path.stat().st_mode & 0o100)
+            staged_path.unlink()
+
+    def test_rejects_bad_digest_and_removes_partial_download(self):
+        contents = b"\x7fELFtest"
+        asset = ReleaseAsset(
+            name="unir_pdfs-linux-amd64",
+            url="https://github.com/alperonoberto/unidor_pdfs/releases/download/v1/test",
+            size=len(contents),
+            digest="sha256:" + "0" * 64,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            executable_path = Path(directory) / "unir_pdfs"
+            executable_path.write_bytes(b"old executable")
+            with (
+                patch.object(sys, "frozen", True, create=True),
+                patch("update_manager.platform.system", return_value="Linux"),
+                patch(
+                    "update_manager.urllib.request.urlopen",
+                    return_value=io.BytesIO(contents),
+                ),
+            ):
+                with self.assertRaises(UpdateError):
+                    download_update(asset, executable_path)
+
+            self.assertEqual(list(Path(directory).glob("*.update")), [])
+            self.assertEqual(executable_path.read_bytes(), b"old executable")
+
+    def test_rejects_download_that_is_not_an_executable(self):
+        contents = b"not an executable"
+        asset = ReleaseAsset(
+            name="unir_pdfs-linux-amd64",
+            url="https://github.com/alperonoberto/unidor_pdfs/releases/download/v1/test",
+            size=len(contents),
+            digest="sha256:" + hashlib.sha256(contents).hexdigest(),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            executable_path = Path(directory) / "unir_pdfs"
+            executable_path.write_bytes(b"old executable")
+            with (
+                patch.object(sys, "frozen", True, create=True),
+                patch("update_manager.platform.system", return_value="Linux"),
+                patch(
+                    "update_manager.urllib.request.urlopen",
+                    return_value=io.BytesIO(contents),
+                ),
+            ):
+                with self.assertRaises(UpdateError):
+                    download_update(asset, executable_path)
+
+            self.assertEqual(executable_path.read_bytes(), b"old executable")
+            self.assertEqual(list(Path(directory).glob("*.update")), [])
+
+
+class InstallUpdateTests(unittest.TestCase):
+    def test_restarts_from_replaced_linux_executable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable_path = Path(directory) / "unir_pdfs"
+            executable_path.write_bytes(b"old executable")
+            staged_path = Path(directory) / "staged"
+            staged_path.write_bytes(b"new executable")
+            with (
+                patch("update_manager.platform.system", return_value="Linux"),
+                patch("update_manager.subprocess.Popen") as popen,
+            ):
+                install_update(staged_path, executable_path, 123)
+
+            self.assertEqual(executable_path.read_bytes(), b"new executable")
+            popen.assert_called_once()
+            self.assertEqual(list(Path(directory).glob("*.backup")), [])
+
+    def test_rolls_back_if_linux_restart_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable_path = Path(directory) / "unir_pdfs"
+            executable_path.write_bytes(b"old executable")
+            staged_path = Path(directory) / "staged"
+            staged_path.write_bytes(b"new executable")
+            with (
+                patch("update_manager.platform.system", return_value="Linux"),
+                patch("update_manager.subprocess.Popen", side_effect=OSError("failed")),
+            ):
+                with self.assertRaises(OSError):
+                    install_update(staged_path, executable_path, 123)
+
+            self.assertEqual(executable_path.read_bytes(), b"old executable")
+            self.assertEqual(list(Path(directory).glob("*.backup")), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

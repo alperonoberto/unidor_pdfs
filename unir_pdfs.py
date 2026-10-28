@@ -1,16 +1,19 @@
 import os
 import sys
 import threading
-import urllib.request
-import json
-import webbrowser
+import urllib.error
+from pathlib import Path
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 import pymupdf
 from app_version import APP_VERSION
-from version_utils import versions_match
-
-GITHUB_REPO = "alperonoberto/unidor_pdfs"
+from version_utils import is_newer_version
+from update_manager import (
+    download_update,
+    install_update,
+    latest_release,
+    select_release_asset,
+)
 
 # Configuración inicial del tema global
 ctk.set_appearance_mode("System")
@@ -132,27 +135,60 @@ class PDFMergerApp:
     def check_for_updates(self):
         """Consulta la API de GitHub para verificar si hay una nueva versión."""
         try:
-            url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-            req = urllib.request.Request(
-                url, 
-                headers={"User-Agent": "PDFMergerApp-Updater"}
+            release = latest_release()
+            latest_version = release["tag_name"]
+            if is_newer_version(latest_version, APP_VERSION):
+                self.root.after(
+                    0,
+                    lambda: self.show_update_dialog(release),
+                )
+        except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as error:
+            self.root.after(
+                0,
+                lambda message=str(error): messagebox.showwarning(
+                    "Comprobación de actualizaciones",
+                    f"No se pudo comprobar si hay una nueva versión:\n{message}",
+                ),
             )
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode())
-                latest_version = data["tag_name"]
-                release_url = data["html_url"]
 
-                if not versions_match(latest_version, APP_VERSION):
-                    self.root.after(0, lambda: self.show_update_dialog(latest_version, release_url))
-        except Exception:
-            pass
-
-    def show_update_dialog(self, latest_version, release_url):
+    def show_update_dialog(self, release):
+        latest_version = release["tag_name"]
         if messagebox.askyesno(
             "Actualización disponible", 
-            f"¡Hay una nueva versión disponible ({latest_version})!\n\n¿Deseas abrir la página de descargas en tu navegador?"
+            f"¡Hay una nueva versión disponible ({latest_version})!\n\n"
+            "¿Deseas descargarla e instalarla ahora? La aplicación se reiniciará."
         ):
-            webbrowser.open(release_url)
+            messagebox.showinfo(
+                "Actualización",
+                "La actualización se está descargando. La aplicación se cerrará "
+                "y volverá a abrirse cuando termine la instalación.",
+            )
+            threading.Thread(
+                target=self.install_latest_update,
+                args=(release,),
+                daemon=True,
+            ).start()
+
+    def install_latest_update(self, release):
+        staged_path = None
+        try:
+            asset = select_release_asset(release)
+            executable_path = Path(sys.executable).resolve()
+            staged_path = download_update(asset, executable_path)
+            install_update(staged_path, executable_path, os.getpid())
+        except Exception as error:
+            if staged_path is not None:
+                staged_path.unlink(missing_ok=True)
+            self.root.after(
+                0,
+                lambda message=str(error): messagebox.showerror(
+                    "Error de actualización",
+                    f"No se pudo instalar la actualización:\n{message}",
+                ),
+            )
+            return
+
+        self.root.after(0, self.root.destroy)
 
     def select_files(self):
         files = filedialog.askopenfilenames(
