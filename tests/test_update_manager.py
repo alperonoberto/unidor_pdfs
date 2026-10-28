@@ -215,6 +215,18 @@ class InstallUpdateTests(unittest.TestCase):
                     script,
                 )
                 self.assertIn(
+                    "[ShellIconCache]::SHChangeNotify(0x00002000, 0x0005, $TargetPath, [IntPtr]::Zero)",
+                    script,
+                )
+                self.assertLess(
+                    script.index("[System.IO.File]::Replace"),
+                    script.index("[ShellIconCache]::SHChangeNotify"),
+                )
+                self.assertLess(
+                    script.index("[ShellIconCache]::SHChangeNotify"),
+                    script.index("Start-Process"),
+                )
+                self.assertIn(
                     "$env:PYINSTALLER_RESET_ENVIRONMENT = '1'",
                     script,
                 )

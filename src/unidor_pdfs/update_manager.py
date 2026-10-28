@@ -247,6 +247,15 @@ $ErrorActionPreference = 'Stop'
 try {
     Wait-Process -Id $ParentPid -ErrorAction SilentlyContinue
     [System.IO.File]::Replace($StagedPath, $TargetPath, $BackupPath)
+    Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class ShellIconCache {
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern void SHChangeNotify(uint eventId, uint flags, string path, IntPtr item);
+}
+'@
+    [ShellIconCache]::SHChangeNotify(0x00002000, 0x0005, $TargetPath, [IntPtr]::Zero)
     $env:PYINSTALLER_RESET_ENVIRONMENT = '1'
     Start-Process -FilePath $TargetPath -WorkingDirectory (Split-Path $TargetPath)
     Remove-Item -LiteralPath $BackupPath -Force
