@@ -1,9 +1,11 @@
 import os
+import platform
 import sys
 import threading
 import urllib.error
 from pathlib import Path
 import customtkinter as ctk
+from tkinter import PhotoImage
 import pymupdf
 from app_version import APP_VERSION
 from version_utils import is_newer_version
@@ -33,16 +35,17 @@ class PDFMergerApp:
         self.root.geometry("520x540")
         self.root.resizable(False, False)
 
-        # Carga robusta y segura del icono para CustomTkinter
-        try:
-            icon_path = resource_path(os.path.join("assets", "icon.png"))
-            self.root.iconbitmap(icon_path) # Si es .ico en Windows
-        except Exception:
-            try:
-                # Alternativa segura para Linux / PNG
-                icon_img = ctk.CTkImage(light_image=None, dark_image=None)
-            except Exception:
-                pass
+        self.app_icon = PhotoImage(
+            file=resource_path(os.path.join("assets", "logo_png.png"))
+        )
+        self.root.iconphoto(True, self.app_icon)
+        system = platform.system().casefold()
+        if system == "windows":
+            self.root.iconbitmap(
+                resource_path(os.path.join("assets", "logo_ico.ico"))
+            )
+        elif system == "linux":
+            self.root.wm_class("unidor_pdfs", "UnidorPDFs")
 
         self.pdf_files = []
         self.file_widgets = []

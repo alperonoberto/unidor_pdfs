@@ -51,7 +51,7 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: startsWith(matrix.os, 'windows')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" --collect-all pymupdf unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --icon=assets/logo_ico.ico --add-data "assets;assets" --collect-all pymupdf unir_pdfs.py
 
     # Build con PyInstaller para Linux
     - name: Build with PyInstaller (Linux)

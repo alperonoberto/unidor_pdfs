@@ -23,6 +23,7 @@ exe = EXE(
     a.datas,
     [],
     name='UnidorPDFs',
+    icon='assets/logo_ico.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
