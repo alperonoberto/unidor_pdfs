@@ -12,3 +12,5 @@ Una herramienta práctica, rápida y eficiente diseñada para simplificar la ges
 Este proyecto está construido con tecnologías modernas para garantizar un rendimiento óptimo y una gran compatibilidad en entornos de escritorio.
 ## 🤝 Contribuciones
 ¡Las contribuciones son siempre bienvenidas! Si tienes ideas para mejorar la herramienta, encuentras algún error o quieres proponer nuevas funcionalidades, siéntete libre de abrir un Issue o enviar un Pull Request.
+
+>Las versiones oficiales para Windows y Linux x86-64 comprueban si hay actualizaciones al iniciar. Si hay una nueva versión, puedes confirmar su descarga e instalación desde el aviso; la aplicación se reiniciará automáticamente. La instalación requiere permisos de escritura en la carpeta donde está el ejecutable.

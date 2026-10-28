@@ -1,6 +1,6 @@
 import unittest
 
-from version_utils import versions_match
+from version_utils import is_newer_version, versions_match
 
 
 class VersionUtilsTests(unittest.TestCase):
@@ -12,6 +12,20 @@ class VersionUtilsTests(unittest.TestCase):
 
     def test_ignores_surrounding_whitespace_and_prefix_case(self):
         self.assertTrue(versions_match(" V1.0.8.2 ", "1.0.8.2"))
+
+    def test_detects_newer_version(self):
+        self.assertTrue(is_newer_version("v1.0.9", "v1.0.8.2"))
+
+    def test_does_not_offer_same_or_older_version(self):
+        self.assertFalse(is_newer_version("v1.0.8.2", "1.0.8.2"))
+        self.assertFalse(is_newer_version("v1.0.8.1", "v1.0.8.2"))
+
+    def test_treats_trailing_zero_components_as_equivalent(self):
+        self.assertFalse(is_newer_version("v1.0.0", "1.0"))
+
+    def test_rejects_non_numeric_versions(self):
+        with self.assertRaises(ValueError):
+            is_newer_version("latest", "v1.0.0")
 
 
 if __name__ == "__main__":
