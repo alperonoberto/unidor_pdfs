@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from update_manager import (
+from unidor_pdfs.update_manager import (
     ReleaseAsset,
     UpdateError,
     download_update,
@@ -85,7 +85,7 @@ class LatestReleaseTests(unittest.TestCase):
             {"tag_name": "v1.0.9", "assets": [], "prerelease": False},
         ]
         response = io.BytesIO(json.dumps(releases).encode("utf-8"))
-        with patch("update_manager.urllib.request.urlopen", return_value=response):
+        with patch("unidor_pdfs.update_manager.urllib.request.urlopen", return_value=response):
             release = latest_release()
 
         self.assertEqual(release["tag_name"], "v1.0.9")
@@ -97,7 +97,7 @@ class LatestReleaseTests(unittest.TestCase):
         ]
         response = io.BytesIO(json.dumps(releases).encode("utf-8"))
         with (
-            patch("update_manager.urllib.request.urlopen", return_value=response),
+            patch("unidor_pdfs.update_manager.urllib.request.urlopen", return_value=response),
             self.assertRaises(ValueError),
         ):
             latest_release()
@@ -119,9 +119,9 @@ class DownloadUpdateTests(unittest.TestCase):
             progress = []
             with (
                 patch.object(sys, "frozen", True, create=True),
-                patch("update_manager.platform.system", return_value="Linux"),
+                patch("unidor_pdfs.update_manager.platform.system", return_value="Linux"),
                 patch(
-                    "update_manager.urllib.request.urlopen",
+                    "unidor_pdfs.update_manager.urllib.request.urlopen",
                     return_value=io.BytesIO(contents),
                 ),
             ):
@@ -154,9 +154,9 @@ class DownloadUpdateTests(unittest.TestCase):
             executable_path.write_bytes(b"old executable")
             with (
                 patch.object(sys, "frozen", True, create=True),
-                patch("update_manager.platform.system", return_value="Linux"),
+                patch("unidor_pdfs.update_manager.platform.system", return_value="Linux"),
                 patch(
-                    "update_manager.urllib.request.urlopen",
+                    "unidor_pdfs.update_manager.urllib.request.urlopen",
                     return_value=io.BytesIO(contents),
                 ),
             ):
@@ -179,9 +179,9 @@ class DownloadUpdateTests(unittest.TestCase):
             executable_path.write_bytes(b"old executable")
             with (
                 patch.object(sys, "frozen", True, create=True),
-                patch("update_manager.platform.system", return_value="Linux"),
+                patch("unidor_pdfs.update_manager.platform.system", return_value="Linux"),
                 patch(
-                    "update_manager.urllib.request.urlopen",
+                    "unidor_pdfs.update_manager.urllib.request.urlopen",
                     return_value=io.BytesIO(contents),
                 ),
             ):
@@ -200,9 +200,9 @@ class InstallUpdateTests(unittest.TestCase):
             staged_path = Path(directory) / "staged.exe"
             staged_path.write_bytes(b"new executable")
             with (
-                patch("update_manager.platform.system", return_value="Windows"),
-                patch("update_manager.shutil.which", return_value="powershell.exe"),
-                patch("update_manager.subprocess.Popen") as popen,
+                patch("unidor_pdfs.update_manager.platform.system", return_value="Windows"),
+                patch("unidor_pdfs.update_manager.shutil.which", return_value="powershell.exe"),
+                patch("unidor_pdfs.update_manager.subprocess.Popen") as popen,
             ):
                 install_update(staged_path, executable_path, 123)
 
@@ -235,9 +235,9 @@ class InstallUpdateTests(unittest.TestCase):
             staged_path = Path(directory) / "staged"
             staged_path.write_bytes(b"new executable")
             with (
-                patch("update_manager.platform.system", return_value="Linux"),
+                patch("unidor_pdfs.update_manager.platform.system", return_value="Linux"),
                 patch.dict(os.environ, {"UNIDOR_TEST_ENV": "preserved"}),
-                patch("update_manager.subprocess.Popen") as popen,
+                patch("unidor_pdfs.update_manager.subprocess.Popen") as popen,
             ):
                 install_update(staged_path, executable_path, 123)
 
@@ -255,8 +255,8 @@ class InstallUpdateTests(unittest.TestCase):
             staged_path = Path(directory) / "staged"
             staged_path.write_bytes(b"new executable")
             with (
-                patch("update_manager.platform.system", return_value="Linux"),
-                patch("update_manager.subprocess.Popen", side_effect=OSError("failed")),
+                patch("unidor_pdfs.update_manager.platform.system", return_value="Linux"),
+                patch("unidor_pdfs.update_manager.subprocess.Popen", side_effect=OSError("failed")),
             ):
                 with self.assertRaises(OSError):
                     install_update(staged_path, executable_path, 123)

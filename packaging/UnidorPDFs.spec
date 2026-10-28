@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['unir_pdfs.py'],
-    pathex=[],
+    ['src/unidor_pdfs/unir_pdfs.py'],
+    pathex=['src'],
     binaries=[],
     datas=[],
     hiddenimports=[],

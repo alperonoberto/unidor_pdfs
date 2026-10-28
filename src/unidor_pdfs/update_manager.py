@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from version_utils import is_newer_version, is_stable_version
+from unidor_pdfs.version_utils import is_newer_version, is_stable_version
 
 
 GITHUB_REPO = "alperonoberto/unidor_pdfs"

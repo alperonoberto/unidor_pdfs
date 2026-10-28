@@ -1,6 +1,6 @@
 import unittest
 
-from version_utils import is_newer_version, versions_match
+from unidor_pdfs.version_utils import is_newer_version, versions_match
 
 
 class VersionUtilsTests(unittest.TestCase):

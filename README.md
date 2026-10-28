@@ -47,6 +47,16 @@ Para instalarla automáticamente, la aplicación necesita permiso de escritura e
 - [PyMuPDF](https://pymupdf.readthedocs.io/) para procesar y optimizar documentos PDF
 - [PyInstaller](https://pyinstaller.org/) para generar los ejecutables portables
 
+## Desarrollo local
+
+Instala las dependencias con `python -m pip install -r requirements.txt`. Desde la raíz del repositorio, ejecuta la aplicación con:
+
+```bash
+PYTHONPATH=src python -m unidor_pdfs.unir_pdfs
+```
+
+Las pruebas se ejecutan con `PYTHONPATH=src python -m unittest discover -s tests`.
+
 ## Contribuciones
 
 Las contribuciones son bienvenidas. Para informar de un error o proponer una mejora, abre un [Issue](https://github.com/alperonoberto/unidor_pdfs/issues) o envía un Pull Request.

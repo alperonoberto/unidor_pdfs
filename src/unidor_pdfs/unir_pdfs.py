@@ -7,9 +7,9 @@ from pathlib import Path
 import customtkinter as ctk
 from tkinter import PhotoImage
 import pymupdf
-from app_version import APP_VERSION
-from version_utils import is_newer_version
-from update_manager import (
+from unidor_pdfs.app_version import APP_VERSION
+from unidor_pdfs.version_utils import is_newer_version
+from unidor_pdfs.update_manager import (
     download_update,
     install_update,
     latest_release,

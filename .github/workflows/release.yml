@@ -29,7 +29,7 @@ jobs:
         python-version: '3.11'
 
     - name: Set application version
-      run: python -c "from pathlib import Path; import os; Path('app_version.py').write_text('APP_VERSION = ' + repr(os.environ['RELEASE_VERSION']) + '\n')"
+      run: python -c "from pathlib import Path; import os; Path('src/unidor_pdfs/app_version.py').write_text('APP_VERSION = ' + repr(os.environ['RELEASE_VERSION']) + '\n')"
 
     # Instalación de dependencias (Windows)
     - name: Install dependencies (Windows)
@@ -51,13 +51,13 @@ jobs:
     - name: Build with PyInstaller (Windows)
       if: startsWith(matrix.os, 'windows')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --icon=assets/logo_ico.ico --add-data "assets;assets" --collect-all pymupdf unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --paths src --icon=assets/logo_ico.ico --add-data "assets;assets" --collect-all pymupdf src/unidor_pdfs/unir_pdfs.py
 
     # Build con PyInstaller para Linux
     - name: Build with PyInstaller (Linux)
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        pyinstaller --noconfirm --onefile --windowed --add-data "assets:assets" --collect-all pymupdf unir_pdfs.py
+        pyinstaller --noconfirm --onefile --windowed --paths src --add-data "assets:assets" --collect-all pymupdf src/unidor_pdfs/unir_pdfs.py
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
