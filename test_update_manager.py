@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from update_manager import (
     UpdateError,
     download_update,
     install_update,
+    latest_release,
     select_release_asset,
 )
 
@@ -70,6 +72,34 @@ class ReleaseAssetTests(unittest.TestCase):
         release["assets"][0]["digest"] = "md5:" + "a" * 32
         with self.assertRaises(UpdateError):
             select_release_asset(release, system="Linux", machine="x86_64")
+
+
+class LatestReleaseTests(unittest.TestCase):
+    def test_selects_latest_official_release_and_ignores_prereleases(self):
+        releases = [
+            {"tag_name": "v1.0.9-beta", "assets": [], "prerelease": False},
+            {"tag_name": "v1.0.8", "assets": [], "prerelease": False},
+            {"tag_name": "v1.0.10-rc.1", "assets": [], "prerelease": True},
+            {"tag_name": "v9.0.0", "assets": [], "draft": True},
+            {"tag_name": "v1.0.9", "assets": [], "prerelease": False},
+        ]
+        response = io.BytesIO(json.dumps(releases).encode("utf-8"))
+        with patch("update_manager.urllib.request.urlopen", return_value=response):
+            release = latest_release()
+
+        self.assertEqual(release["tag_name"], "v1.0.9")
+
+    def test_raises_when_no_official_release_is_available(self):
+        releases = [
+            {"tag_name": "v1.0.9-beta", "assets": [], "prerelease": True},
+            {"tag_name": "v1.0.10", "assets": [], "draft": True},
+        ]
+        response = io.BytesIO(json.dumps(releases).encode("utf-8"))
+        with (
+            patch("update_manager.urllib.request.urlopen", return_value=response),
+            self.assertRaises(ValueError),
+        ):
+            latest_release()
 
 
 class DownloadUpdateTests(unittest.TestCase):

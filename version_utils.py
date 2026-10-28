@@ -6,12 +6,30 @@ def versions_match(first: str, second: str) -> bool:
 
 
 def is_newer_version(candidate: str, current: str) -> bool:
-    candidate_parts = _numeric_version_parts(candidate)
-    current_parts = _numeric_version_parts(current)
+    candidate_parts, candidate_is_prerelease = _version_parts(candidate)
+    current_parts, current_is_prerelease = _version_parts(current)
     width = max(len(candidate_parts), len(current_parts))
-    return candidate_parts + (0,) * (width - len(candidate_parts)) > (
-        current_parts + (0,) * (width - len(current_parts))
-    )
+    normalized_candidate = candidate_parts + (0,) * (width - len(candidate_parts))
+    normalized_current = current_parts + (0,) * (width - len(current_parts))
+    if normalized_candidate != normalized_current:
+        return normalized_candidate > normalized_current
+    return current_is_prerelease and not candidate_is_prerelease
+
+
+def is_stable_version(version: str) -> bool:
+    try:
+        _numeric_version_parts(version)
+    except ValueError:
+        return False
+    return True
+
+
+def _version_parts(version: str) -> tuple[tuple[int, ...], bool]:
+    normalized = version.strip().casefold().removeprefix("v")
+    numeric_version, separator, prerelease = normalized.partition("-")
+    if separator and not prerelease:
+        raise ValueError(f"Formato de versión no compatible: {version}")
+    return _numeric_version_parts(numeric_version), bool(separator)
 
 
 def _numeric_version_parts(version: str) -> tuple[int, ...]:

@@ -16,6 +16,10 @@ class VersionUtilsTests(unittest.TestCase):
     def test_detects_newer_version(self):
         self.assertTrue(is_newer_version("v1.0.9", "v1.0.8.2"))
 
+    def test_stable_release_is_newer_than_same_prerelease(self):
+        self.assertTrue(is_newer_version("v1.0.9", "v1.0.9-beta"))
+        self.assertFalse(is_newer_version("v1.0.9-beta", "v1.0.9"))
+
     def test_does_not_offer_same_or_older_version(self):
         self.assertFalse(is_newer_version("v1.0.8.2", "1.0.8.2"))
         self.assertFalse(is_newer_version("v1.0.8.1", "v1.0.8.2"))
