@@ -243,7 +243,10 @@ class PDFMergerApp:
             ctk.CTkButton(
                 buttons,
                 text="No",
-                fg_color="transparent",
+                fg_color=("#f3f4f6", "#374151"),
+                hover_color=("#e5e7eb", "#4b5563"),
+                text_color=("gray10", "gray90"),
+                border_color=("#9ca3af", "#6b7280"),
                 border_width=1,
                 command=lambda: finish(False),
                 width=100,
@@ -251,6 +254,9 @@ class PDFMergerApp:
             ctk.CTkButton(
                 buttons,
                 text="Sí",
+                fg_color="#16a34a",
+                hover_color="#15803d",
+                text_color="white",
                 command=lambda: finish(True),
                 width=100,
             ).pack(side="right")
@@ -458,11 +464,9 @@ class PDFMergerApp:
         ctk.CTkButton(
             actions,
             text="Cancelar",
-            fg_color=("#f3f4f6", "#374151"),
-            hover_color=("#e5e7eb", "#4b5563"),
-            text_color=("gray10", "gray90"),
-            border_color=("#9ca3af", "#6b7280"),
-            border_width=1,
+            fg_color=("#dc2626", "#b91c1c"),
+            hover_color=("#b91c1c", "#991b1b"),
+            text_color="white",
             command=dialog.destroy,
         ).pack(side="right", padx=(8, 0))
         ctk.CTkButton(
