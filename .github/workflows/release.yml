@@ -8,6 +8,8 @@ jobs:
   build:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_VERSION: ${{ github.event.release.tag_name }}
     
     strategy:
       matrix:
@@ -25,6 +27,9 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+
+    - name: Set application version
+      run: python -c "from pathlib import Path; import os; Path('app_version.py').write_text('APP_VERSION = ' + repr(os.environ['RELEASE_VERSION']) + '\n')"
 
     # Instalación de dependencias (Windows)
     - name: Install dependencies (Windows)

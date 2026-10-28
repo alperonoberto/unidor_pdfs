@@ -7,9 +7,9 @@ import webbrowser
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 import pymupdf
+from app_version import APP_VERSION
+from version_utils import versions_match
 
-# Versión actual de la aplicación
-CURRENT_VERSION = "v1.0.8"
 GITHUB_REPO = "alperonoberto/unidor_pdfs"
 
 # Configuración inicial del tema global
@@ -17,7 +17,7 @@ ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
 def resource_path(relative_path):
-    """ Obtiene la ruta absoluta al recurso, compatible con desarrollo y con PyInstaller """
+    # Obtiene la ruta absoluta al recurso, compatible con desarrollo y con PyInstaller
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -126,7 +126,8 @@ class PDFMergerApp:
         self.btn_merge.pack(fill="x")
 
         # Lanzar comprobación de actualizaciones automática en segundo plano al iniciar
-        threading.Thread(target=self.check_for_updates, daemon=True).start()
+        if APP_VERSION != "dev":
+            threading.Thread(target=self.check_for_updates, daemon=True).start()
 
     def check_for_updates(self):
         """Consulta la API de GitHub para verificar si hay una nueva versión."""
@@ -141,7 +142,7 @@ class PDFMergerApp:
                 latest_version = data["tag_name"]
                 release_url = data["html_url"]
 
-                if latest_version != CURRENT_VERSION:
+                if not versions_match(latest_version, APP_VERSION):
                     self.root.after(0, lambda: self.show_update_dialog(latest_version, release_url))
         except Exception:
             pass
