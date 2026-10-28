@@ -116,6 +116,7 @@ class DownloadUpdateTests(unittest.TestCase):
             executable_path = Path(directory) / "unir_pdfs"
             executable_path.write_bytes(b"old executable")
             executable_path.chmod(0o755)
+            progress = []
             with (
                 patch.object(sys, "frozen", True, create=True),
                 patch("update_manager.platform.system", return_value="Linux"),
@@ -124,10 +125,20 @@ class DownloadUpdateTests(unittest.TestCase):
                     return_value=io.BytesIO(contents),
                 ),
             ):
-                staged_path = download_update(asset, executable_path)
+                staged_path = download_update(
+                    asset,
+                    executable_path,
+                    progress_callback=lambda downloaded, total: progress.append(
+                        (downloaded, total)
+                    ),
+                )
 
             self.assertEqual(staged_path.read_bytes(), contents)
             self.assertTrue(staged_path.stat().st_mode & 0o100)
+            self.assertEqual(
+                progress,
+                [(0, len(contents)), (len(contents), len(contents))],
+            )
             staged_path.unlink()
 
     def test_rejects_bad_digest_and_removes_partial_download(self):

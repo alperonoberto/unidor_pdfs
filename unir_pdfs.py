@@ -169,38 +169,106 @@ class PDFMergerApp:
             "¿Deseas descargarla e instalarla ahora? La aplicación se reiniciará.",
             kind="question",
         ):
-            self.show_message(
-                "Actualización",
-                "La actualización se está descargando. La aplicación se cerrará "
-                "y volverá a abrirse cuando termine la instalación.",
+            progress_dialog = ctk.CTkToplevel(self.root)
+            progress_dialog.title("Actualizando")
+            progress_dialog.geometry("420x170")
+            progress_dialog.resizable(False, False)
+            progress_dialog.transient(self.root)
+            progress_dialog.grab_set()
+            progress_dialog.protocol("WM_DELETE_WINDOW", lambda: None)
+
+            progress_label = ctk.CTkLabel(
+                progress_dialog,
+                text="Preparando la actualización...",
+                font=ctk.CTkFont(size=13),
             )
+            progress_label.pack(fill="x", padx=24, pady=(28, 12))
+
+            progress_bar = ctk.CTkProgressBar(progress_dialog, width=360)
+            progress_bar.pack(padx=24, pady=(0, 8))
+            progress_bar.set(0)
+
+            progress_percent = ctk.CTkLabel(
+                progress_dialog,
+                text="0%",
+                font=ctk.CTkFont(size=11),
+                text_color=("gray50", "gray60"),
+            )
+            progress_percent.pack()
+            self._center_dialog(progress_dialog, self.root, 420, 170)
+
             threading.Thread(
                 target=self.install_latest_update,
-                args=(release,),
+                args=(
+                    release,
+                    progress_dialog,
+                    progress_bar,
+                    progress_label,
+                    progress_percent,
+                ),
                 daemon=True,
             ).start()
 
-    def install_latest_update(self, release):
+    def install_latest_update(
+        self,
+        release,
+        progress_dialog,
+        progress_bar,
+        progress_label,
+        progress_percent,
+    ):
         staged_path = None
         try:
             asset = select_release_asset(release)
             executable_path = Path(sys.executable).resolve()
-            staged_path = download_update(asset, executable_path)
+
+            def report_progress(downloaded, total):
+                percentage = downloaded / total
+                self.root.after(
+                    0,
+                    lambda value=percentage: (
+                        progress_bar.set(value),
+                        progress_percent.configure(text=f"{value:.0%}"),
+                        progress_label.configure(text="Descargando actualización..."),
+                    ),
+                )
+
+            staged_path = download_update(
+                asset,
+                executable_path,
+                progress_callback=report_progress,
+            )
+            self.root.after(
+                0,
+                lambda: (
+                    progress_bar.set(1),
+                    progress_percent.configure(text="100%"),
+                    progress_label.configure(
+                        text="Aplicando actualización y reiniciando..."
+                    ),
+                ),
+            )
             install_update(staged_path, executable_path, os.getpid())
         except Exception as error:
             if staged_path is not None:
                 staged_path.unlink(missing_ok=True)
             self.root.after(
                 0,
-                lambda message=str(error): self.show_message(
-                    "Error de actualización",
-                    f"No se pudo instalar la actualización:\n{message}",
-                    kind="error",
+                lambda message=str(error): self._show_update_error(
+                    progress_dialog, message
                 ),
             )
             return
 
         self.root.after(0, self.root.destroy)
+
+    def _show_update_error(self, progress_dialog, message):
+        progress_dialog.destroy()
+        self.show_message(
+            "Error de actualización",
+            f"No se pudo instalar la actualización:\n{message}",
+            kind="error",
+        )
 
     def show_message(self, title, message, kind="info", parent=None):
         parent = parent or self.root

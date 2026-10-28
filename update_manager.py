@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from version_utils import is_newer_version, is_stable_version
 
@@ -115,7 +115,11 @@ def select_release_asset(
     )
 
 
-def download_update(asset: ReleaseAsset, executable_path: Path) -> Path:
+def download_update(
+    asset: ReleaseAsset,
+    executable_path: Path,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> Path:
     executable_path = executable_path.resolve()
     if not getattr(sys, "frozen", False):
         raise UpdateError("La instalación automática solo está disponible en el ejecutable.")
@@ -135,6 +139,8 @@ def download_update(asset: ReleaseAsset, executable_path: Path) -> Path:
     digest = hashlib.sha256()
     downloaded = 0
     try:
+        if progress_callback is not None:
+            progress_callback(downloaded, asset.size)
         request = urllib.request.Request(
             asset.url,
             headers={"User-Agent": USER_AGENT},
@@ -147,6 +153,8 @@ def download_update(asset: ReleaseAsset, executable_path: Path) -> Path:
                         raise UpdateError("El archivo descargado supera el tamaño permitido.")
                     digest.update(chunk)
                     output.write(chunk)
+                    if progress_callback is not None:
+                        progress_callback(downloaded, asset.size)
 
         if downloaded != asset.size:
             raise UpdateError("El tamaño del archivo descargado no coincide con la release.")
