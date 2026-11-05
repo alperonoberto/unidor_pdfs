@@ -2,6 +2,8 @@
 
 Aplicación de escritorio para unir varios archivos PDF en uno solo o comprimir un PDF existente. Permite elegir el nivel de compresión, ordenar los documentos antes de procesarlos y seleccionar dónde guardar el resultado.
 
+<img width="522" height="572" alt="{835DA99D-F035-4ED4-96C6-4A1C21DA8CFB}" src="https://github.com/user-attachments/assets/995387f6-08a7-4993-9bb4-709d389a4e97" />
+
 ## Funcionalidades
 
 - **Unir varios PDF** en el orden que elijas.
